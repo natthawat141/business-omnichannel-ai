@@ -84,7 +84,7 @@ class DatabaseSeederTest extends TestCase
     {
         $this->app['env'] = 'production';
         try {
-            $this->seed(\Database\Seeders\RealEstateDemoSeeder::class);
+            $this->app->make(\Database\Seeders\RealEstateDemoSeeder::class)->run();
             $this->fail('Demo seeding must not run in production');
         } catch (\RuntimeException $exception) {
             $this->assertSame('Demo seeding is disabled in production.', $exception->getMessage());

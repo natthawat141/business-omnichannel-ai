@@ -36,7 +36,9 @@ Contract source: [pinned Chatwoot controller](https://github.com/chatwoot/chatwo
   the existing dead-letter key (most recent 1,000). Monitor this private queue; it contains original
   webhook data, must not be printed to logs, and needs a business-approved retention policy.
 - Message dedup uses account/conversation/message identity; other event shapes use a payload hash.
-  Completed-event markers and per-event public/private/Flex claims expire after seven days.
+  Completed-event markers and per-event delivery claims expire after seven days. Flex and text
+  share a single customer-visible claim so a changed catalog on replay cannot produce a second
+  reply through the other channel; private notes have a separate claim.
   Replays after that window are not guaranteed deduplicated.
 - Before an outbound POST a pending claim is stored. Known success is marked delivered; replay
   skips that operation. Pending/unknown delivery goes to manual review, not automatic resend.
@@ -61,6 +63,8 @@ Pattern source: [Redis LMOVE reliable queue](https://redis.io/docs/latest/comman
 - AI containers no longer receive the whole root `.env`. Only allowlisted AI settings and the
   existing dedicated OpenRouter/Chatwoot runtime files are passed. Keep those files limited to
   their intended keys. Management/MySQL/Cloudflare secrets must not be added to them.
+  `OPENROUTER_MODEL` is explicitly taken from the root deployment environment; do not rely on a
+  conflicting model value in `runtime/openrouter.env`.
 - LINE application logs contain outcome/status/error class only, not recipient or response body.
 
 ## Verification and rollout gates

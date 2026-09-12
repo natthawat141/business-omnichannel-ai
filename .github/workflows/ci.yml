@@ -37,6 +37,23 @@ jobs:
             echo "Private-key material must not be committed."
             exit 1
           fi
+      - name: Validate deployment configuration with synthetic environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          mkdir -p runtime
+          touch runtime/openrouter.env runtime/chatwoot_bot.env
+          docker compose config --format json | python3 -c '
+          import json, sys
+          services = json.load(sys.stdin)["services"]
+          forbidden = {"ADMIN_PASSWORD", "MANAGEMENT_DB_PASSWORD", "MANAGEMENT_DB_ROOT_PASSWORD", "CHATWOOT_POSTGRES_PASSWORD", "APP_KEY", "CLOUDFLARE_IMAGES_API_TOKEN"}
+          for name in ("ai", "ai-worker"):
+              env = services[name]["environment"]
+              assert not forbidden.intersection(env), "AI environment contains unrelated secrets"
+              assert {"AI_SERVICE_TOKEN", "AI_QUEUE_REDIS_URL", "OPENROUTER_MODEL"}.issubset(env)
+          assert services["management-php"]["environment"]["SEED_ON_START"] == "false"
+          print("Compose and AI environment isolation validated")'
 
   management:
     name: Management

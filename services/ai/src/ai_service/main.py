@@ -226,7 +226,9 @@ class ChatwootClient:
         return [item for item in payload if isinstance(item, dict)]
 
     async def message(self, account_id: int, conversation_id: int, content: str, private: bool = False) -> None:
-        operation = f"chatwoot:{account_id}:{conversation_id}:{'private' if private else 'public'}"
+        # Flex and plain text share one public claim: replay may choose a
+        # different branch after inventory changes, but must not reply twice.
+        operation = f"chatwoot:{account_id}:{conversation_id}:private" if private else "customer-visible"
         if not await reserve_delivery(operation):
             return
         try:
@@ -317,7 +319,7 @@ class ManagementClient:
 async def line_push_flex(client: httpx.AsyncClient, token: str, to: str, flex_payload: Mapping[str, Any]) -> bool:
     if not token or not to or not to.startswith("U"):
         return False
-    if not await reserve_delivery("line:flex"):
+    if not await reserve_delivery("customer-visible"):
         return True
     try:
         res = await client.post(
@@ -330,13 +332,13 @@ async def line_push_flex(client: httpx.AsyncClient, token: str, to: str, flex_pa
             timeout=8.0,
         )
         if res.status_code == 200:
-            await mark_delivered("line:flex")
+            await mark_delivered("customer-visible")
             LOG.info("line_push_flex success")
             return True
         LOG.warning("line_push_flex failed status=%s", res.status_code)
         if res.status_code >= 500:
             raise DeliveryUncertain("line_delivery")
-        await mark_rejected("line:flex")
+        await mark_rejected("customer-visible")
         return False
     except httpx.HTTPError as exc:
         LOG.warning("line_push_flex error=%s", type(exc).__name__)
