@@ -7,12 +7,12 @@ agent. It removes routine branch bookkeeping while keeping one explicit human ga
 
 The agent may:
 
-1. Read `AGENTS.md`, `SPEC.md`, this playbook, and `docs/BRANCHING.md`.
+1. Read `AGENTS.md`, `SPEC.md`, this playbook, and `docs/operations/branching.md`.
 2. Inspect the current branch, working tree, remote refs, open pull requests, and CI results.
 3. Review the diff, scan tracked changes for credentials and local artifacts, and run relevant checks.
-4. Commit and push approved development work to `dev`.
-5. Run the Release Steward workflow after CI is green. The workflow fast-forwards `stg` to the exact
-   tested `dev` commit and creates or refreshes one `stg` to `main` pull request.
+4. Commit and push approved development work to `development`.
+5. Run the Release Steward workflow after CI is green. The workflow fast-forwards `staging` to the exact
+   tested `development` commit and creates or refreshes one `staging` to `main` pull request.
 6. Keep a concise review record: commit SHA, checks, risks, migrations, deployment state, and rollback
    target.
 
@@ -21,7 +21,7 @@ infrastructure, or create/reveal credentials without a separate explicit product
 
 ## One-command promotion
 
-After the CI run for the current `dev` commit succeeds:
+After the CI run for the current `development` commit succeeds:
 
 ```bash
 gh workflow run release-steward.yml --ref main
@@ -29,9 +29,9 @@ gh workflow run release-steward.yml --ref main
 
 The workflow refuses to proceed when:
 
-- the current `dev` commit has no successful `CI` workflow run;
-- `stg` cannot be fast-forwarded to `dev`;
-- GitHub cannot update `stg` or maintain the production pull request.
+- the current `development` commit has no successful `CI` workflow run;
+- `staging` cannot be fast-forwarded to `development`;
+- GitHub cannot update `staging` or maintain the production pull request.
 
 This command is a staging promotion and pull-request preparation, not a production deployment.
 
@@ -41,12 +41,12 @@ Copy this prompt into Codex, Claude Code, Gemini CLI, or another repository-awar
 
 ```text
 Act as Release Steward for this repository. Read AGENTS.md, SPEC.md,
-docs/BRANCHING.md, and docs/RELEASE_STEWARD.md before acting.
+docs/operations/branching.md, and docs/operations/release-steward.md before acting.
 
 Inspect the real git and GitHub state. Do not read .env or secrets. Review the
-diff and CI evidence, then handle every safe dev/stg branch task you can. If the
-current dev commit is green, use the Release Steward workflow to fast-forward
-stg and maintain the stg-to-main pull request. Never merge main, deploy
+diff and CI evidence, then handle every safe development/staging branch task you can. If the
+current development commit is green, use the Release Steward workflow to fast-forward
+staging and maintain the staging-to-main pull request. Never merge main, deploy
 production, run production migrations, or issue credentials without my separate
 explicit approval.
 
@@ -68,5 +68,5 @@ Every agent handoff must contain:
 
 GitHub only exposes a manually dispatched workflow after that workflow exists on the default branch.
 The initial release-automation pull request therefore needs one manual merge. After that bootstrap,
-agents can perform routine `dev` to `stg` promotion and production-PR maintenance without manual
+agents can perform routine `development` to `staging` promotion and production-PR maintenance without manual
 branch merging.

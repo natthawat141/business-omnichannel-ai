@@ -14,56 +14,57 @@ concurrency:
 
 jobs:
   prepare-release:
-    name: Promote dev and prepare production PR
+    name: Promote development and prepare production PR
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
         with:
-          ref: dev
+          ref: development
           fetch-depth: 0
 
-      - name: Verify successful CI for the exact dev commit
+      - name: Verify successful CI for the exact development commit
         id: release
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
           set -euo pipefail
-          dev_sha="$(git rev-parse HEAD)"
+          development_sha="$(git rev-parse HEAD)"
           run_id="$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
-            --branch dev \
-            --commit "$dev_sha" \
+            --branch development \
+            --event push \
+            --commit "$development_sha" \
             --status success \
             --limit 20 \
             --json databaseId,workflowName \
             --jq '[.[] | select(.workflowName == "CI")][0].databaseId // empty')"
 
           if [[ -z "$run_id" ]]; then
-            echo "No successful CI run exists for dev commit $dev_sha."
+            echo "No successful CI run exists for development commit $development_sha."
             exit 1
           fi
 
-          echo "dev_sha=$dev_sha" >> "$GITHUB_OUTPUT"
+          echo "development_sha=$development_sha" >> "$GITHUB_OUTPUT"
           echo "ci_run_id=$run_id" >> "$GITHUB_OUTPUT"
 
       - name: Fast-forward staging to the tested commit
         shell: bash
         run: |
           set -euo pipefail
-          git fetch origin dev stg
+          git fetch origin development staging
 
-          if ! git merge-base --is-ancestor origin/stg origin/dev; then
-            echo "stg is not an ancestor of dev; refusing a non-fast-forward promotion."
+          if ! git merge-base --is-ancestor origin/staging "${{ steps.release.outputs.development_sha }}"; then
+            echo "staging is not an ancestor of development; refusing a non-fast-forward promotion."
             exit 1
           fi
 
-          git push origin "${{ steps.release.outputs.dev_sha }}:refs/heads/stg"
+          git push origin "${{ steps.release.outputs.development_sha }}:refs/heads/staging"
 
       - name: Create or refresh the production pull request
         env:
           GH_TOKEN: ${{ github.token }}
-          DEV_SHA: ${{ steps.release.outputs.dev_sha }}
+          DEVELOPMENT_SHA: ${{ steps.release.outputs.development_sha }}
           CI_RUN_ID: ${{ steps.release.outputs.ci_run_id }}
         shell: bash
         run: |
@@ -73,10 +74,10 @@ jobs:
           cat > "$body_file" <<EOF
           ## Release candidate
 
-          Release Steward fast-forwarded \`stg\` to tested commit \`$DEV_SHA\`.
+          Release Steward fast-forwarded \`staging\` to tested commit \`$DEVELOPMENT_SHA\`.
 
           - CI evidence: https://github.com/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID
-          - Source flow: \`dev\` -> \`stg\` -> \`main\`
+          - Source flow: \`development\` -> \`staging\` -> \`main\`
           - Production has not been deployed.
 
           ## Required human gate
@@ -89,7 +90,7 @@ jobs:
           pr_number="$(gh pr list \
             --repo "$GITHUB_REPOSITORY" \
             --base main \
-            --head stg \
+            --head staging \
             --state open \
             --json number \
             --jq '.[0].number // empty')"
@@ -101,7 +102,7 @@ jobs:
             gh pr create \
               --repo "$GITHUB_REPOSITORY" \
               --base main \
-              --head stg \
+              --head staging \
               --title "release: promote staging to production" \
               --body-file "$body_file"
           fi
