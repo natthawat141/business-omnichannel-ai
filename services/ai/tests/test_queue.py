@@ -95,3 +95,39 @@ def test_worker_replays_old_duplicate_only_once(monkeypatch):
     if not os.getenv("TEST_REDIS_URL"):
         pytest.skip("TEST_REDIS_URL required; supplied in CI")
     asyncio.run(scenario())
+
+
+def test_flex_delivery_prevents_text_replay_after_catalog_changes():
+    from ai_service.main import ChatwootClient, Settings, line_push_flex
+    from ai_service.reliable_queue import ReliableQueue, delivery_context
+    from dataclasses import replace
+    import httpx
+
+    async def scenario():
+        client = redis.from_url(os.environ["TEST_REDIS_URL"], decode_responses=True)
+        key = "test:queue:" + uuid.uuid4().hex
+        q = ReliableQueue(client, key)
+        sent = []
+        def transport(request):
+            sent.append(request.url.host)
+            return httpx.Response(200, json={})
+        context_token = delivery_context.set((q, "same-event"))
+        try:
+            assert await q.acquire()
+            async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as http:
+                assert await line_push_flex(http, "synthetic", "Usynthetic", {})
+                # Simulate replay after a crash with a now-empty catalog: no Flex
+                # is selected, but ordinary text must not create another reply.
+                cfg = replace(Settings.from_env(), chatwoot_base_url="http://chatwoot")
+                await ChatwootClient(cfg, http).message(1, 2, "no longer available")
+            assert sent == ["api.line.me"]
+        finally:
+            delivery_context.reset(context_token)
+            await q.release()
+            keys = [item async for item in client.scan_iter(key + "*")]
+            if keys:
+                await client.delete(*keys)
+            await client.aclose()
+    if not os.getenv("TEST_REDIS_URL"):
+        pytest.skip("TEST_REDIS_URL required; supplied in CI")
+    asyncio.run(scenario())
