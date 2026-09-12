@@ -1,4 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import type { PageProps } from '@/types';
 import { Plus, Pencil } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import Pagination from '@/components/Pagination';
@@ -14,22 +15,23 @@ interface Props {
 }
 
 export default function CategoriesIndex({ categories, filters }: Props) {
+    const canEdit = usePage<PageProps>().props.auth.user?.can_edit;
     return (
         <AdminLayout
-            title="หมวดบริการ"
-            actions={
+            title="ประเภททรัพย์"
+            actions={canEdit &&
                 <Link href={routes.categories.create}>
                     <Button>
                         <Plus className="h-4 w-4" />
-                        เพิ่มหมวดบริการ
+                        เพิ่มประเภททรัพย์
                     </Button>
                 </Link>
             }
         >
-            <Head title="หมวดบริการ" />
+            <Head title="ประเภททรัพย์" />
 
             <div className="mb-4">
-                <SearchBar action={routes.categories.index} initial={filters.search} placeholder="ค้นหาชื่อหมวด">
+                <SearchBar action={routes.categories.index} initial={filters.search} placeholder="ค้นหาประเภททรัพย์">
                     <SelectInput
                         defaultValue={filters.is_active ?? ''}
                         name="is_active"
@@ -51,15 +53,15 @@ export default function CategoriesIndex({ categories, filters }: Props) {
 
             {categories.data.length === 0 ? (
                 <div className="rounded-xl border border-slate-200 bg-white">
-                    <EmptyState message="ยังไม่มีข้อมูลหมวดบริการ" />
+                    <EmptyState message="ยังไม่มีข้อมูลประเภททรัพย์" />
                 </div>
             ) : (
                 <Table>
                     <thead className="bg-slate-50">
                         <tr>
-                            <Th>ชื่อหมวด</Th>
+                            <Th>ชื่อประเภททรัพย์</Th>
                             <Th>slug</Th>
-                            <Th>จำนวนแพ็กเกจ</Th>
+                            <Th>จำนวนรายการทรัพย์</Th>
                             <Th>ลำดับ</Th>
                             <Th>สถานะ</Th>
                             <Th className="text-right">จัดการ</Th>
@@ -81,7 +83,7 @@ export default function CategoriesIndex({ categories, filters }: Props) {
                                     <Badge active={category.is_active} />
                                 </Td>
                                 <Td className="text-right">
-                                    <div className="flex items-center justify-end gap-1">
+                                    <div className={canEdit ? 'flex items-center justify-end gap-1' : 'hidden'}>
                                         <Link
                                             href={routes.categories.edit(category.id)}
                                             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-600 hover:bg-slate-100"

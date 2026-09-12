@@ -30,8 +30,8 @@ interface Analytics {
 }
 
 const tiles = [
-    { key: 'packages', label: 'แพ็กเกจ', icon: Package, href: routes.packages.index },
-    { key: 'publishedPackages', label: 'แพ็กเกจเผยแพร่', icon: CheckCircle2, href: routes.packages.index },
+    { key: 'packages', label: 'รายการทรัพย์', icon: Package, href: routes.packages.index },
+    { key: 'publishedPackages', label: 'ทรัพย์ที่เผยแพร่', icon: CheckCircle2, href: routes.packages.index },
     { key: 'faqs', label: 'คำถามพบบ่อย', icon: HelpCircle, href: routes.faqs.index },
     { key: 'knowledge', label: 'คลังความรู้', icon: BookOpen, href: routes.knowledge.index },
 ] as const;

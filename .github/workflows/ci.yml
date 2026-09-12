@@ -1,0 +1,114 @@
+name: CI
+
+on:
+  push:
+    branches: [development, staging, main]
+  pull_request:
+    branches: [development, staging, main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  repository-policy:
+    name: Repository policy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Reject tracked secrets and local artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          blocked_paths="$(git ls-files | grep -E '(^|/)(\.env($|\.)|node_modules/|vendor/|\.wrangler/|runtime/|.*\.sqlite$)' | grep -vE '(^|/)\.env\.example$' || true)"
+          if [[ -n "$blocked_paths" ]]; then
+            echo "Blocked tracked paths:"
+            echo "$blocked_paths"
+            exit 1
+          fi
+
+          if git grep -I -n -E 'BEGIN (RSA |OPENSSH |EC |DSA )?PRIVATE KEY' -- . ':!*.lock'; then
+            echo "Private-key material must not be committed."
+            exit 1
+          fi
+
+  management:
+    name: Management
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/management
+    steps:
+      - uses: actions/checkout@v7
+      - name: Prepare Laravel environment
+        run: cp .env.example .env
+      - uses: shivammathur/setup-php@v2
+        with:
+          # composer.lock currently resolves Symfony 8.1, which requires PHP >= 8.4.1.
+          php-version: '8.4'
+          extensions: mbstring, dom, fileinfo, sqlite3, pdo_sqlite
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/management/package-lock.json
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+      - name: Install frontend dependencies
+        run: npm ci
+      - name: Generate test application key
+        run: php artisan key:generate
+      - name: Frontend typecheck
+        run: npm run typecheck
+      - name: Frontend lint
+        run: npm run lint
+      - name: Frontend build
+        run: npm run build
+      - name: Backend tests
+        run: php artisan test
+
+  ai-service:
+    name: AI service
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: services/ai
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: services/ai/pyproject.toml
+      - name: Install
+        run: python -m pip install -e '.[dev]'
+      - name: Syntax check
+        run: python -m compileall -q src tests
+      - name: Tests
+        run: pytest
+
+  document-intake-agent:
+    name: Document intake agent
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tools/document-intake-agent
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: tools/document-intake-agent/package-lock.json
+      - name: Install
+        run: npm ci
+      - name: Tests
+        run: npm test

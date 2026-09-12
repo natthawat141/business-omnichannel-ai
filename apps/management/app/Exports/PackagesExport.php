@@ -19,7 +19,7 @@ class PackagesExport implements FromCollection, WithHeadings, WithMapping
      */
     public function collection(): Collection
     {
-        return ServicePackage::query()->orderBy('name_th')->get();
+        return ServicePackage::query()->with('category')->orderBy('name_th')->get();
     }
 
     /**
@@ -27,17 +27,7 @@ class PackagesExport implements FromCollection, WithHeadings, WithMapping
      */
     public function headings(): array
     {
-        return [
-            'code',
-            'name_th',
-            'description_th',
-            'price',
-            'sale_price',
-            'effective_from',
-            'effective_until',
-            'terms',
-            'keywords',
-        ];
+        return \App\Services\PackageImportPreview::COLUMNS;
     }
 
     /**
@@ -48,14 +38,29 @@ class PackagesExport implements FromCollection, WithHeadings, WithMapping
     {
         return [
             $row->code,
+            $row->category?->slug,
+            $row->transaction_type,
+            $row->availability,
             $row->name_th,
             $row->description_th,
             $row->price,
             $row->sale_price,
+            $row->location_text,
+            $row->province,
+            $row->district,
+            $row->subdistrict,
+            $row->project_name,
+            $row->bedrooms,
+            $row->bathrooms,
+            $row->usable_area_sqm,
+            $row->land_area_sqw,
+            $row->floor,
+            $row->primary_image_url,
             $row->effective_from?->format('Y-m-d'),
             $row->effective_until?->format('Y-m-d'),
             $row->terms,
             $row->keywords,
+            $row->attributes === null ? null : json_encode($row->attributes, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR),
         ];
     }
 }

@@ -39,11 +39,25 @@ interface Props {
 }
 
 const fields = [
-    ['code', 'จำเป็น', 'รหัสไม่ซ้ำ เช่น PROMO-2026-001 ใช้ตรวจข้อมูลซ้ำ'],
-    ['name_th', 'จำเป็น', 'ชื่อแพ็กเกจหรือโปรโมชัน'],
+    ['code', 'จำเป็น', 'รหัสทรัพย์ไม่ซ้ำ เช่น CONDO-2026-001'],
+    ['category_slug', 'แนะนำ', 'ต้องตรงกับ Slug ที่มีอยู่ในหน้าประเภททรัพย์ เช่น condo, house, land'],
+    ['transaction_type', 'แนะนำ', 'sale, rent หรือ service'],
+    ['availability', 'ไม่จำเป็น', 'available = พร้อมให้ AI นำเสนอ; ค่าอื่นคือยังไม่พร้อม/ปิดรายการ'],
+    ['name_th', 'จำเป็น', 'ชื่อรายการทรัพย์'],
     ['description_th', 'ไม่จำเป็น', 'รายละเอียดที่ต้องการให้ AI ใช้ตอบ'],
     ['price', 'ไม่จำเป็น', 'ราคาปกติ เป็นตัวเลข ไม่ใส่ comma'],
     ['sale_price', 'ไม่จำเป็น', 'ราคาโปรโมชัน เป็นตัวเลข'],
+    ['location_text', 'แนะนำ', 'ย่านหรือทำเลที่ลูกค้าใช้ค้นหา'],
+    ['province', 'ไม่จำเป็น', 'จังหวัด'],
+    ['district', 'ไม่จำเป็น', 'เขตหรืออำเภอ'],
+    ['subdistrict', 'ไม่จำเป็น', 'แขวงหรือตำบล'],
+    ['project_name', 'ไม่จำเป็น', 'ชื่อโครงการ'],
+    ['bedrooms', 'ไม่จำเป็น', 'จำนวนห้องนอน'],
+    ['bathrooms', 'ไม่จำเป็น', 'จำนวนห้องน้ำ'],
+    ['usable_area_sqm', 'ไม่จำเป็น', 'พื้นที่ใช้สอย ตร.ม.'],
+    ['land_area_sqw', 'ไม่จำเป็น', 'พื้นที่ดิน ตร.ว.'],
+    ['floor', 'ไม่จำเป็น', 'ชั้น'],
+    ['primary_image_url', 'แนะนำ', 'URL HTTPS ของรูปหลักสำหรับ Flex Card'],
     ['effective_from', 'ไม่จำเป็น', 'วันเริ่มใช้ รูปแบบ YYYY-MM-DD'],
     ['effective_until', 'ไม่จำเป็น', 'วันสิ้นสุด รูปแบบ YYYY-MM-DD'],
     ['terms', 'ไม่จำเป็น', 'เงื่อนไขและข้อจำกัด'],
@@ -71,7 +85,7 @@ export default function ImportsIndex({ columns, history, preview }: Props) {
     }
 
     function confirmImport() {
-        const message = `ยืนยันเพิ่ม ${preview?.new_count ?? 0} รายการเป็นฉบับร่าง?\n\nระบบจะไม่เขียนทับรหัสเดิม และ AI จะยังไม่เห็นข้อมูลจนกว่าจะเปิดเผยแพร่ในหน้าแพ็กเกจ`;
+        const message = `ยืนยันเพิ่ม ${preview?.new_count ?? 0} รายการเป็นฉบับร่าง?\n\nระบบจะไม่เขียนทับรหัสเดิม และ AI จะยังไม่ใช้ข้อมูลจนกว่าจะเปิดใช้งาน เปิดเผยแพร่ อยู่ในช่วงวันที่มีผล และมีสถานะพร้อมเสนอ`;
         if (preview && window.confirm(message)) {
             router.post(routes.imports.confirm, { token: preview.token }, { preserveScroll: true });
         }
@@ -82,8 +96,8 @@ export default function ImportsIndex({ columns, history, preview }: Props) {
     }
 
     return (
-        <AdminLayout title="นำเข้าแพ็กเกจ / โปรโมชัน">
-            <Head title="นำเข้าแพ็กเกจ / โปรโมชัน" />
+        <AdminLayout title="นำเข้ารายการทรัพย์">
+            <Head title="นำเข้ารายการทรัพย์" />
 
             <div className="space-y-6">
                 <section className="rounded-xl border border-amber-300 bg-amber-50 p-5">
@@ -92,8 +106,9 @@ export default function ImportsIndex({ columns, history, preview }: Props) {
                         <div>
                             <h2 className="font-semibold text-amber-950">ระบบนี้เพิ่มข้อมูลใหม่เท่านั้น ไม่มีการเขียนทับ</h2>
                             <p className="mt-1 text-sm leading-6 text-amber-900">
-                                นำเข้าได้เฉพาะแพ็กเกจและโปรโมชัน หากพบ <strong>code ซ้ำ</strong> ระบบจะข้ามรายการนั้น
-                                และข้อมูลใหม่จะถูกเก็บเป็น <strong>ฉบับร่าง</strong> ก่อน จึงยังไม่ถูกส่งให้ AI ตอบทันที
+                                นำเข้าได้ทั้งรายการทรัพย์และไฟล์ legacy 9 คอลัมน์ หากพบ <strong>code ซ้ำ</strong> ระบบจะข้ามรายการนั้น
+                                และข้อมูลใหม่จะถูกเก็บเป็น <strong>ฉบับร่าง</strong> ก่อน ต้องเปิดใช้งาน เผยแพร่ อยู่ในช่วงวันที่มีผล
+                                และมีสถานะพร้อมเสนอ จึงจะถูกส่งให้ AI ใช้ตอบ
                             </p>
                         </div>
                     </div>
@@ -110,7 +125,7 @@ export default function ImportsIndex({ columns, history, preview }: Props) {
                         </div>
                         <div className="flex flex-wrap gap-2">
                             <a href={routes.imports.template}><Button type="button" variant="secondary"><Download className="h-4 w-4" />ไฟล์เปล่า</Button></a>
-                            <a href={routes.imports.exportUrl}><Button type="button" variant="secondary"><Download className="h-4 w-4" />สำรองข้อมูลปัจจุบัน</Button></a>
+                            <a href={routes.imports.exportUrl}><Button type="button" variant="secondary"><Download className="h-4 w-4" />ส่งออกรายการทรัพย์</Button></a>
                         </div>
                     </div>
 
@@ -175,7 +190,7 @@ export default function ImportsIndex({ columns, history, preview }: Props) {
                 )}
 
                 <section>
-                    <h2 className="mb-3 text-base font-semibold text-slate-900">ประวัติการนำเข้าแพ็กเกจ / โปรโมชัน</h2>
+                    <h2 className="mb-3 text-base font-semibold text-slate-900">ประวัติการนำเข้ารายการทรัพย์</h2>
                     {history.length === 0 ? <div className="rounded-xl border border-slate-200 bg-white"><EmptyState message="ยังไม่มีประวัติการนำเข้า" /></div> : (
                         <Table><thead className="bg-slate-50"><tr><Th>ไฟล์</Th><Th>เพิ่มใหม่</Th><Th>ข้ามรหัสซ้ำ</Th><Th>ผิดพลาด</Th><Th>วันที่</Th></tr></thead><tbody className="divide-y divide-slate-100">
                             {history.map((row) => <tr key={row.id}><Td>{row.filename}</Td><Td className="text-zinc-700">{row.rows_imported}</Td><Td className="text-amber-700">{row.rows_skipped}</Td><Td className="text-red-700">{row.rows_failed}</Td><Td>{row.created_at ?? '—'}</Td></tr>)}

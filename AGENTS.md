@@ -135,3 +135,16 @@ An implementation slice is done only when:
 - no secret, PII, or unbounded data is introduced into logs or prompts;
 - backward compatibility and migration effects are documented;
 - the handoff clearly separates verified results from assumptions and unverified production behavior.
+
+## Release Steward
+
+- The canonical branch and promotion contract is `docs/operations/branching.md`; the operating playbook is
+  `docs/operations/release-steward.md`.
+- A coding agent may manage routine integration work allowed by FR-OPS-001–003: inspect CI, prepare
+  review evidence, push approved work to `development`, run the Release Steward workflow, and maintain the
+  `staging` to `main` pull request.
+- A coding agent must stop before merging `main`, deploying production, running production
+  migrations, changing production infrastructure, or creating real credentials. Those actions still
+  require a separate explicit product-owner approval.
+- Never let two agents edit the same files concurrently. The primary agent owns the final diff,
+  verification, and handoff even when another agent performs a bounded review.

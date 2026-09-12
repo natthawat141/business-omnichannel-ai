@@ -1,0 +1,26 @@
+{
+  "name": "@local/document-intake-agent",
+  "version": "0.2.0",
+  "description": "Scoped CLI and MCP server for document metadata and human-reviewed Management proposals",
+  "type": "module",
+  "main": "dist/index.js",
+  "files": ["bin/", "dist/*.js", "dist/*.d.ts"],
+  "bin": {
+    "document-intake": "./bin/document-intake.js",
+    "document-intake-mcp": "./bin/document-intake-mcp.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "tsc && node --test dist/tests/*.test.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/node": "^22.13.0",
+    "typescript": "^5.7.3"
+  }
+}

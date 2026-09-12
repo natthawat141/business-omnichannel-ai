@@ -21,11 +21,13 @@ export default function Login() {
             <Head title="เข้าสู่ระบบ" />
             <div className="w-full max-w-sm">
                 <div className="mb-6 text-center">
-                    <img
-                        src="/img/aionelogo.jpeg"
-                        alt="Aion3"
-                        className="mx-auto h-16 w-auto max-w-full object-contain mix-blend-multiply"
-                    />
+                    <span className="brand-logo-frame">
+                        <img
+                            src="/img/aion3-logo.png"
+                            alt="Aion3"
+                            className="brand-logo h-16 w-auto max-w-full object-contain"
+                        />
+                    </span>
                     <h1 className="mt-2 text-xl font-semibold tracking-tight text-zinc-900">Knowledge Management</h1>
                     <p className="mt-1 text-sm text-slate-500">จัดการข้อมูลที่ AI ใช้ตอบลูกค้า</p>
                 </div>

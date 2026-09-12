@@ -70,6 +70,18 @@ CATALOG_FOLLOWUP_HINTS = (
 )
 RESET_ALL_PHRASES = ("เริ่มใหม่", "หาอย่างอื่น", "ดูอย่างอื่น", "เปลี่ยนใหม่", "start over", "reset")
 RESET_RULES = (("ไม่จำกัดงบ", "price"), ("งบเท่าไหร่ก็ได้", "price"), ("ที่ไหนก็ได้", "location"), ("ไม่จำกัดทำเล", "location"), ("any budget", "price"), ("any location", "location"))
+RELAXATION_CONSENT_PHRASES = (
+    "ดูตัวเลือกอื่น", "ดูรายการอื่น", "ดูใกล้เคียง", "ตัวเลือกใกล้เคียง",
+    "show alternatives", "show other options", "nearby alternatives",
+)
+CATALOG_RELAXATION_PROMPT = (
+    "ยังไม่พบรายการที่ตรงทุกเงื่อนไขครับ "
+    "ต้องการดูตัวเลือกอื่นที่ยังคงประเภททรัพย์และรูปแบบซื้อ/เช่าเดิมไหมครับ"
+)
+CATALOG_RELAXATION_EMPTY = (
+    "ยังไม่พบตัวเลือกอื่นที่พร้อมเสนอครับ "
+    "หากต้องการ ผมส่งต่อให้ทีมเจ้าหน้าที่ช่วยค้นหาเพิ่มเติมได้ครับ"
+)
 ORDINAL_MAP = {
     "ตัวแรก": 0, "อันแรก": 0, "ตัวที่ 1": 0, "ตัวที่1": 0, "ตัวแรกสุด": 0,
     "ตัวที่สอง": 1, "อันที่สอง": 1, "ตัวที่ 2": 1, "ตัวที่2": 1,
@@ -271,12 +283,13 @@ class ManagementClient:
         data = payload.get("data")
         return data if isinstance(data, dict) else {}
 
-    async def flex_carousel(self, category_slug: str | None = None, limit: int = 5) -> dict[str, Any] | None:
+    async def flex_carousel(self, item_ids: list[int]) -> dict[str, Any] | None:
         try:
-            params: dict[str, Any] = {"limit": limit}
-            if category_slug:
-                params["category_slug"] = category_slug
-            payload = await self._request_raw("GET", "/api/v1/flex/carousel", params=params)
+            payload = await self._request_raw(
+                "POST",
+                "/api/v1/flex/carousel",
+                json={"item_ids": item_ids[:10]},
+            )
             return payload if isinstance(payload, dict) and payload.get("type") == "flex" else None
         except Exception:
             return None
@@ -500,6 +513,22 @@ def apply_resets(text: str, filters: dict[str, Any]) -> dict[str, Any]:
         if phrase in normalized:
             result.pop(key, None)
     return result
+
+
+def relaxed_catalog_filters(filters: Mapping[str, Any]) -> dict[str, Any]:
+    """Keep the customer's core intent while dropping detail constraints only after consent."""
+    relaxed = {
+        key: filters[key]
+        for key in ("category_slug", "transaction_type")
+        if key in filters
+    }
+    relaxed.update({"limit": 4, "sort": "relevance"})
+    return relaxed
+
+
+def consents_to_catalog_relaxation(text: str) -> bool:
+    normalized = normalize_text(text)
+    return any(phrase in normalized for phrase in RELAXATION_CONSENT_PHRASES)
 
 
 def detect_intent(content: str, previous_intent: str | None) -> str:
@@ -727,9 +756,11 @@ async def _process_locked(
     previous_intent = str(attrs.get("ai_last_intent", "")) if fresh_context else None
     previous_filters = read_json_attr(attrs, "ai_catalog_filters", {}) if fresh_context else {}
     previous_result_ids = read_json_attr(attrs, "ai_last_catalog_result_ids", []) if fresh_context else []
+    relaxation_pending = fresh_context and attrs.get("ai_catalog_relaxation_pending") is True
+    relaxation_consent = relaxation_pending and consents_to_catalog_relaxation(content)
     # A knowledge question between catalog turns must not destroy the ability
     # to understand the next "เอา 2 ห้องนอน" follow-up.
-    intent = detect_intent(content, "catalog" if previous_filters else previous_intent)
+    intent = "catalog" if relaxation_consent else detect_intent(content, "catalog" if previous_filters else previous_intent)
 
     chat_messages = await chatwoot.messages(account_id, conversation_id)
     history = build_history(chat_messages)
@@ -737,9 +768,15 @@ async def _process_locked(
     records: list[dict[str, Any]] = []
     alternatives: list[dict[str, Any]] = []
     catalog_state: dict[str, Any] | None = None
+    catalog_relaxation_prompt = False
+    catalog_relaxation_empty = False
     if intent == "catalog":
         current_filters = catalog_filters(content)
-        merged = merge_catalog_filters(apply_resets(content, previous_filters), current_filters)
+        merged = (
+            relaxed_catalog_filters(previous_filters)
+            if relaxation_consent
+            else merge_catalog_filters(apply_resets(content, previous_filters), current_filters)
+        )
         index = requested_result_index(content)
         if index is not None and previous_result_ids:
             try:
@@ -752,17 +789,15 @@ async def _process_locked(
                 catalog_state = None
         if not records and not (index is not None and previous_result_ids):
             records = await management.search(merged)
-            if not records:
-                try:
-                    alternatives = await management.search({"limit": 4, "availability": "available"})
-                except Exception:
-                    alternatives = []
-            result_ids = [item["id"] for item in (records or alternatives) if isinstance(item.get("id"), int)][:10]
+            catalog_relaxation_prompt = not records and not relaxation_consent
+            catalog_relaxation_empty = not records and relaxation_consent
+            result_ids = [item["id"] for item in records if isinstance(item.get("id"), int)][:10]
             catalog_state = {
                 "ai_last_intent": "catalog",
                 "ai_catalog_filters": json.dumps(merged, ensure_ascii=False, separators=(",", ":")),
                 "ai_last_catalog_result_ids": json.dumps(result_ids),
                 "ai_context_updated_at": datetime.now(timezone.utc).isoformat(),
+                "ai_catalog_relaxation_pending": catalog_relaxation_prompt,
             }
     elif intent == "knowledge":
         records = await management.knowledge(search_query(content))
@@ -774,7 +809,11 @@ async def _process_locked(
     # [], catalog_state stays None so a catalog conversation's context (filters,
     # last result ids) survives a "สวัสดีครับ" in the middle untouched.
 
-    if intent == "knowledge" and not records:
+    if catalog_relaxation_prompt:
+        answer = CATALOG_RELAXATION_PROMPT
+    elif catalog_relaxation_empty:
+        answer = CATALOG_RELAXATION_EMPTY
+    elif intent == "knowledge" and not records:
         # Never let the model answer a specific knowledge question from an
         # empty context (still true -- this never calls the LLM on zero
         # records). SPEC FR-AI-003/§5.5 asks for one focused clarification
@@ -817,8 +856,12 @@ async def _process_locked(
         )
         if isinstance(line_user_id, str) and line_user_id.startswith("U"):
             if intent == "catalog" and (records or alternatives):
-                category_slug = current_filters.get("category_slug") if isinstance(current_filters, Mapping) else None
-                flex_payload = await management.flex_carousel(category_slug, limit=5)
+                flex_item_ids = [
+                    item["id"]
+                    for item in (records or alternatives)
+                    if isinstance(item.get("id"), int)
+                ][:5]
+                flex_payload = await management.flex_carousel(flex_item_ids) if flex_item_ids else None
                 if flex_payload:
                     flex_delivered = await line_push_flex(client, settings.line_channel_access_token, line_user_id, flex_payload)
             else:

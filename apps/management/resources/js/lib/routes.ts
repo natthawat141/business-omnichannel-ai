@@ -27,6 +27,9 @@ export const routes = {
         update: (id: number) => admin(`/packages/${id}`),
         destroy: (id: number) => admin(`/packages/${id}`),
     },
+    propertyImages: {
+        directUpload: admin('/property-images/direct-upload'),
+    },
     faqs: {
         index: admin('/faqs'),
         create: admin('/faqs/create'),
@@ -59,6 +62,14 @@ export const routes = {
         cancel: admin('/imports/packages/cancel'),
         template: admin('/imports/packages/template'),
         exportUrl: admin('/exports/packages'),
+    },
+    agentChanges: {
+        index: admin('/agent-changes'),
+        show: (id: string) => admin(`/agent-changes/${id}`),
+        approve: (id: string) => admin(`/agent-changes/${id}/approve`),
+        apply: (id: string) => admin(`/agent-changes/${id}/apply`),
+        bulkApply: admin('/agent-changes/bulk-apply'),
+        reject: (id: string) => admin(`/agent-changes/${id}/reject`),
     },
     publicHome: '/',
 };

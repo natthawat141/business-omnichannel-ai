@@ -20,12 +20,19 @@ class BusinessProfile extends Model
     ];
 
     /**
-     * Singleton accessor: always the record with id 1, created on first access
-     * with sensible defaults so the AI service and admin form always have data.
+     * Singleton accessor. Older databases may contain the one profile under a
+     * non-one primary key, so use the existing row rather than creating a
+     * second profile merely because an auto-increment sequence has advanced.
      */
     public static function current(): self
     {
-        return self::firstOrCreate(['id' => 1], [
+        $existing = self::query()->orderBy('id')->first();
+
+        if ($existing !== null) {
+            return $existing;
+        }
+
+        return self::create([
             'business_name' => 'ธุรกิจของฉัน',
             'business_description' => 'กรุณากรอกรายละเอียดธุรกิจในหน้าตั้งค่าโปรไฟล์',
         ]);

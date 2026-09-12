@@ -13,6 +13,12 @@ performs Chatwoot and Management API calls with bounded retries.
 - ตรวจ ownership/deduplication ก่อนตอบ, ค้น catalog ผ่าน Management API และเรียก OpenRouter
   ด้วย model ที่กำหนดใน environment
 - ใช้ประวัติข้อความสาธารณะล่าสุดและ custom attributes ของ Chatwoot เพื่อคุยต่อเนื่องและอ้างอิงรายการเดิม
+- ส่ง ID จากผล Catalog Search ชุดเดียวกันไปสร้าง LINE Flex carousel ตามลำดับเดิม โดย Management
+  ตรวจ active, published, effective และ available ซ้ำก่อนสร้างการ์ด
+- เมื่อค้นหาทรัพย์แบบ exact แล้วไม่พบ จะขออนุญาตก่อนผ่อนเฉพาะทำเล ราคา และคุณสมบัติ โดยคง
+  `category_slug` และ `transaction_type`; หากยังไม่พบจะตอบข้อความคงที่และไม่เรียก LLM เพื่อแต่งทางเลือก
+- เก็บ context แบบมีอายุใน Chatwoot custom attributes ได้แก่ `ai_catalog_filters`,
+  `ai_last_catalog_result_ids` และ `ai_catalog_relaxation_pending` เพื่อรองรับคำถามต่อเนื่องและ consent
 - เมื่อ knowledge search แบบเจาะจงไม่พบผลลัพธ์ จะไม่หยิบแถวแรกที่ไม่เกี่ยวข้องมาเป็น context ให้โมเดล
 - ส่งต่อ human handoff ไปยัง Chatwoot team เมื่อผู้ใช้ร้องขอ ร้องเรียน มีปัญหาการชำระเงิน หรือยืนยันข้อมูลไม่ได้
 

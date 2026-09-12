@@ -1,0 +1,18 @@
+# Management Document Intake
+
+> Read-only document metadata integration for a single business. Public instructions contain no credentials or business records.
+
+## AI instructions
+
+- [Readable documentation](/docs/agent-setup): Human-oriented installation guide, copyable examples and Antigravity setup.
+
+- [Agent installation guide](/docs/agent-setup.md): Download package, configure the selected local client, enter the key separately and verify a real response.
+
+- [Document Intake skill](/skills/document-intake/SKILL.md): Tool workflows, connection prerequisites, capability limits and credential-safe troubleshooting.
+- [Management Proposals skill](/skills/management-proposals/SKILL.md): Preview-first, human-reviewed catalog/FAQ/knowledge proposal workflow. It cannot approve, apply or publish.
+- [Administrator setup](/admin/ai-setup): Login required; local CLI/MCP configuration and temporary key management.
+
+- [Simple browser connection](/docs/remote-mcp): Human-readable Remote MCP and OAuth guide.
+- [Remote MCP contract](/docs/remote-mcp.md): Discovery, scopes, human consent, verification and connection lifecycle.
+
+Resolve relative links against this website's origin. Check enabled status at administrator setup. Remote MCP uses browser OAuth when enabled; local stdio MCP / CLI remains in Advanced. The skill is documentation, not authentication or automatic installation. PDF contents are not exposed by the document-metadata tools. Proposals submit only a reviewable change set; an administrator remains the apply gate. Client/account compatibility must be verified independently.

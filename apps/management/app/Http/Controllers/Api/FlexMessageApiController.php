@@ -15,7 +15,12 @@ class FlexMessageApiController extends Controller
 {
     public function show(ServicePackage $package): JsonResponse
     {
-        abort_unless($package->is_active && $package->is_published, 404);
+        $package = ServicePackage::query()
+            ->publicOffer()->active()
+            ->published()
+            ->effective()
+            ->where('availability', 'available')
+            ->findOrFail($package->getKey());
         $package->load('category:id,name_th,slug');
 
         $bubble = $this->buildPropertyBubble($package);
@@ -33,7 +38,7 @@ class FlexMessageApiController extends Controller
         $categorySlug = $request->query('category_slug');
 
         $query = ServicePackage::query()
-            ->active()->published()->effective()
+            ->publicOffer()->active()->published()->effective()
             ->with('category:id,name_th,slug')
             ->where('availability', 'available');
 
@@ -51,6 +56,47 @@ class FlexMessageApiController extends Controller
             'contents' => [
                 'type' => 'carousel',
                 'contents' => $bubbles,
+            ],
+        ]);
+    }
+
+    /**
+     * Build a carousel from the exact bounded result set returned by Catalog Search.
+     * The caller controls presentation order but cannot bypass catalog eligibility.
+     */
+    public function exactCarousel(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'item_ids' => ['required', 'array', 'min:1', 'max:10'],
+            'item_ids.*' => ['required', 'integer', 'min:1', 'distinct'],
+        ]);
+
+        $itemIds = $validated['item_ids'];
+        $itemsById = ServicePackage::query()
+            ->publicOffer()->active()
+            ->published()
+            ->effective()
+            ->where('availability', 'available')
+            ->whereIn('id', $itemIds)
+            ->with('category:id,name_th,slug')
+            ->get()
+            ->keyBy('id');
+
+        $items = collect($itemIds)
+            ->map(fn (int $id) => $itemsById->get($id))
+            ->filter()
+            ->values();
+
+        abort_if($items->isEmpty(), 404);
+
+        return response()->json([
+            'type' => 'flex',
+            'altText' => 'รายการอสังหาริมทรัพย์ที่ตรงกับการค้นหา',
+            'contents' => [
+                'type' => 'carousel',
+                'contents' => $items
+                    ->map(fn (ServicePackage $package) => $this->buildPropertyBubble($package))
+                    ->all(),
             ],
         ]);
     }
@@ -381,7 +427,7 @@ class FlexMessageApiController extends Controller
         }
         $specText = implode('  |  ', $specs);
 
-        return [
+        $bubble = [
             'type' => 'bubble',
             'size' => 'kilo',
             'header' => [
@@ -457,7 +503,7 @@ class FlexMessageApiController extends Controller
                             ],
                             [
                                 'type' => 'text',
-                                'text' => $specText ?: '✨ สภาพพร้อมอยู่ ทำเลดี เดินทางสะดวก',
+                                'text' => $specText ?: 'สอบถามรายละเอียดเพิ่มเติม',
                                 'size' => 'xs',
                                 'color' => '#334155',
                                 'weight' => 'bold',
@@ -497,5 +543,17 @@ class FlexMessageApiController extends Controller
                 ],
             ],
         ];
+
+        if ($item->primary_image_url) {
+            $bubble['hero'] = [
+                'type' => 'image',
+                'url' => $item->primary_image_url,
+                'size' => 'full',
+                'aspectRatio' => '20:13',
+                'aspectMode' => 'cover',
+            ];
+        }
+
+        return $bubble;
     }
 }

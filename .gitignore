@@ -16,6 +16,7 @@ __pycache__/
 *.egg-info/
 .pytest_cache/
 .ruff_cache/
+.wrangler/
 .venv/
 dist/
 build/
@@ -29,4 +30,3 @@ storage/logs/*
 # Local deployment docs
 DEPLOYMENT.md
 DEPLOYMENT*.md
-

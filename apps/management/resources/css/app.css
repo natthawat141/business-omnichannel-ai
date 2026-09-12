@@ -1,4 +1,6 @@
 @import 'tailwindcss';
+/* Match the existing in-app theme switch, not the operating system preference. */
+@custom-variant dark (&:where([data-theme='dark'], [data-theme='dark'] *));
 /* The Thai webfont (Noto Sans Thai) is loaded via a <link> in resources/views/app.blade.php. */
 
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
@@ -26,6 +28,44 @@ body {
     margin: 0;
     background: #f8fafc;
     color: #1e293b;
+}
+
+.brand-logo-frame {
+    position: relative;
+    z-index: 0;
+    display: inline-flex;
+    isolation: isolate;
+}
+
+.brand-logo {
+    position: relative;
+    z-index: 1;
+    filter: none;
+    transition: filter 180ms ease;
+}
+
+[data-theme='dark'] .brand-logo-frame::before {
+    position: absolute;
+    z-index: -1;
+    inset: -105% -72%;
+    border-radius: 50%;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(255, 255, 255, 0.8) 0%,
+        rgba(255, 255, 255, 0.44) 20%,
+        rgba(255, 255, 255, 0.17) 43%,
+        rgba(255, 255, 255, 0.04) 61%,
+        transparent 76%
+    );
+    filter: blur(12px);
+    content: '';
+    pointer-events: none;
+}
+
+[data-theme='dark'] .brand-logo {
+    filter:
+        drop-shadow(0 0 8px rgba(255, 255, 255, 0.85))
+        drop-shadow(0 0 22px rgba(255, 255, 255, 0.58));
 }
 
 /* The default stays light; this scoped layer keeps the calm neutral hierarchy in dark mode. */

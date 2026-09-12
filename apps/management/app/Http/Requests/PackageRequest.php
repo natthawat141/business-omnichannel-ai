@@ -10,7 +10,7 @@ class PackageRequest extends FormRequest
     public function authorize(): bool
     {
         // Route is already guarded by auth + policy; admins may write.
-        return (bool) $this->user()?->is_admin;
+        return (bool) $this->user()?->canEditBusiness();
     }
 
     protected function prepareForValidation(): void
@@ -22,7 +22,8 @@ class PackageRequest extends FormRequest
             $defaults['item_type'] = 'service';
         }
         if (! $this->filled('availability')) {
-            $defaults['availability'] = 'available';
+            $profile = $this->input('profile', $this->route('package')?->profile);
+            $defaults['availability'] = $profile ? 'unknown' : ($this->route('package')?->availability ?? 'available');
         }
         if ($defaults !== []) {
             $this->merge($defaults);
@@ -36,11 +37,11 @@ class PackageRequest extends FormRequest
             $this->merge(['code' => mb_strtoupper(trim((string) $this->code))]);
         }
 
-        if (is_string($this->attributes) && trim($this->attributes) !== '') {
-            $decoded = json_decode($this->attributes, true);
-            if (json_last_error() === JSON_ERROR_NONE) {
-                $this->merge(['attributes' => $decoded]);
-            }
+        if ($this->exists('attributes')) {
+            $this->merge(['attributes' => app(\App\Services\Catalog\AttributeValidator::class)->decode($this->input('attributes'))]);
+        }
+        if ($this->exists('profile_data')) {
+            $this->merge(['profile_data' => app(\App\Services\Catalog\AttributeValidator::class)->decode($this->input('profile_data'))]);
         }
     }
 
@@ -52,6 +53,10 @@ class PackageRequest extends FormRequest
         return [
             'category_id' => ['nullable', 'exists:package_categories,id'],
             'item_type' => ['required', 'string', 'max:40', 'regex:/^[a-z0-9_-]+$/'],
+            'record_kind' => ['sometimes', Rule::in(['group', 'variant', 'offer'])],
+            'profile' => ['nullable', Rule::in(array_keys(app(\App\Services\Catalog\CatalogProfiles::class)->schemas()))],
+            'profile_data' => ['nullable', 'array', 'max:40'],
+            'parent_id' => ['nullable', 'integer', 'exists:packages,id'],
             'code' => [
                 'nullable',
                 'string',
@@ -66,7 +71,7 @@ class PackageRequest extends FormRequest
             'sale_price' => ['nullable', 'numeric', 'min:0'],
             'currency' => ['nullable', 'string', 'size:3'],
             'transaction_type' => ['nullable', Rule::in(['sale', 'rent', 'service'])],
-            'availability' => ['required', Rule::in(['available', 'reserved', 'unavailable'])],
+            'availability' => ['required', Rule::in(['unknown', 'available', 'reserved', 'sold', 'rented', 'unavailable'])],
             'duration_minutes' => ['nullable', 'integer', 'min:0'],
             'terms' => ['nullable', 'string', 'max:5000'],
             'keywords' => ['nullable', 'string', 'max:1000'],
@@ -75,17 +80,23 @@ class PackageRequest extends FormRequest
             'district' => ['nullable', 'string', 'max:100'],
             'subdistrict' => ['nullable', 'string', 'max:100'],
             'project_name' => ['nullable', 'string', 'max:255'],
+            'primary_image_url' => ['nullable', 'url:https', 'max:2048'],
+            'map_url' => ['nullable', 'url:https', 'max:2048'],
             'bedrooms' => ['nullable', 'integer', 'min:0', 'max:99'],
             'bathrooms' => ['nullable', 'integer', 'min:0', 'max:99'],
             'usable_area_sqm' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'land_area_sqw' => ['nullable', 'numeric', 'min:0', 'max:1000000'],
             'floor' => ['nullable', 'integer', 'min:0', 'max:999'],
-            'attributes' => ['nullable', 'array', 'max:30'],
-            'attributes.*' => ['nullable', 'string', 'max:500'],
+            'attributes' => ['nullable', 'array', 'max:40'],
             'is_active' => ['boolean'],
             'is_published' => ['boolean'],
             'effective_from' => ['nullable', 'date'],
             'effective_until' => ['nullable', 'date', 'after_or_equal:effective_from'],
+            // Older direct admin clients did not submit a version. The
+            // controller uses the freshly route-bound current version in that
+            // compatibility case; new forms submit this field for optimistic
+            // conflict detection.
+            'lock_version' => $this->route('package') ? ['nullable', 'integer', 'min:1'] : ['sometimes', 'prohibited'],
         ];
     }
 }

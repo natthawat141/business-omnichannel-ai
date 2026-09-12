@@ -52,7 +52,7 @@ class PackageCategoryController extends Controller
 
         PackageCategory::create($request->validated());
 
-        return redirect()->route('admin.package-categories.index')->with('success', 'เพิ่มหมวดบริการเรียบร้อยแล้ว');
+        return redirect()->route('admin.package-categories.index')->with('success', 'เพิ่มประเภททรัพย์เรียบร้อยแล้ว');
     }
 
     public function edit(PackageCategory $category): Response
@@ -79,6 +79,6 @@ class PackageCategoryController extends Controller
 
         $category->delete();
 
-        return redirect()->route('admin.package-categories.index')->with('success', 'ลบหมวดบริการเรียบร้อยแล้ว');
+        return redirect()->route('admin.package-categories.index')->with('success', 'ลบประเภททรัพย์เรียบร้อยแล้ว');
     }
 }

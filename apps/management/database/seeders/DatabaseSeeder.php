@@ -47,9 +47,11 @@ class DatabaseSeeder extends Seeder
             'email_verified_at' => now(),
         ];
 
-        // Keep the single owner account when credentials change, instead of
-        // creating a second administrator with the new email address.
-        $admin = User::query()->where('is_admin', true)->orderBy('id')->first();
+        // Prefer the configured email so repeated deploys remain idempotent even
+        // when an older database already contains more than one admin record.
+        // Only fall back to the first admin when the configured email is new.
+        $admin = User::query()->where('email', $email)->first()
+            ?? User::query()->where('is_admin', true)->orderBy('id')->first();
 
         if ($admin) {
             $admin->update($attributes);

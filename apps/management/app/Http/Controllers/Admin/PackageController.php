@@ -7,6 +7,7 @@ use App\Http\Requests\PackageRequest;
 use App\Http\Resources\PackageResource;
 use App\Models\PackageCategory;
 use App\Models\ServicePackage;
+use App\Services\Catalog\CatalogWriter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
@@ -24,7 +25,7 @@ class PackageController extends Controller
         $isPublished = $request->query('is_published');
         $isActive = $request->query('is_active');
 
-        $packages = ServicePackage::query()
+        $packages = ServicePackage::query()->unarchived()
             ->with('category')
             ->when($search, fn ($q) => $q->where(function ($sub) use ($search) {
                 $sub->where('name_th', 'like', "%{$search}%")
@@ -57,6 +58,7 @@ class PackageController extends Controller
 
         return Inertia::render('Packages/Form', [
             'pkg' => null,
+            'profileSchemas' => app(\App\Services\Catalog\CatalogProfiles::class)->schemas(),
             'categories' => PackageCategory::orderBy('sort_order')->orderBy('name_th')->get(['id', 'name_th']),
         ]);
     }
@@ -67,7 +69,7 @@ class PackageController extends Controller
 
         ServicePackage::create($request->validated());
 
-        return redirect()->route('admin.packages.index')->with('success', 'เพิ่มแพ็กเกจเรียบร้อยแล้ว');
+        return redirect()->route('admin.packages.index')->with('success', 'เพิ่มรายการทรัพย์เรียบร้อยแล้ว');
     }
 
     public function edit(ServicePackage $package): Response
@@ -76,15 +78,19 @@ class PackageController extends Controller
 
         return Inertia::render('Packages/Form', [
             'pkg' => new PackageResource($package),
+            'profileSchemas' => app(\App\Services\Catalog\CatalogProfiles::class)->schemas(),
             'categories' => PackageCategory::orderBy('sort_order')->orderBy('name_th')->get(['id', 'name_th']),
         ]);
     }
 
-    public function update(PackageRequest $request, ServicePackage $package): RedirectResponse
+    public function update(PackageRequest $request, ServicePackage $package, CatalogWriter $writer): RedirectResponse
     {
         Gate::authorize('update', $package);
 
-        $package->update($request->validated());
+        $data = $request->validated();
+        $expectedVersion = isset($data['lock_version']) ? (int) $data['lock_version'] : (int) $package->lock_version;
+        unset($data['lock_version']);
+        $writer->update($package, $data, $expectedVersion);
 
         return redirect()->route('admin.packages.index')->with('success', 'บันทึกการแก้ไขเรียบร้อยแล้ว');
     }
@@ -93,8 +99,8 @@ class PackageController extends Controller
     {
         Gate::authorize('delete', $package);
 
-        $package->delete();
+        $package->archive();
 
-        return redirect()->route('admin.packages.index')->with('success', 'ลบแพ็กเกจเรียบร้อยแล้ว');
+        return redirect()->route('admin.packages.index')->with('success', 'เก็บรายการทรัพย์เข้าคลังแล้ว และกู้คืนได้');
     }
 }

@@ -34,6 +34,21 @@ class ApiToken extends Model
         'token_hash',
     ];
 
+    protected static function booted(): void
+    {
+        static::updated(function (ApiToken $token): void {
+            // Revocation takes effect for new API calls immediately. Pending
+            // proposals are retained for audit, but cannot later be approved
+            // or applied until an administrator resolves the trust issue.
+            if ($token->wasChanged('revoked_at') && $token->revoked_at !== null) {
+                AgentChangeSet::query()
+                    ->where('api_token_id', $token->id)
+                    ->whereIn('status', [AgentChangeSet::PROPOSED, AgentChangeSet::APPROVED])
+                    ->update(['status' => AgentChangeSet::SUSPENDED, 'suspended_at' => now(), 'updated_at' => now()]);
+            }
+        });
+    }
+
     /**
      * Issue a new token. Returns the model plus the ONE-TIME plaintext value.
      * Only the SHA-256 hash is persisted.
@@ -69,7 +84,7 @@ class ApiToken extends Model
             ->where('token_hash', hash('sha256', $plainText))
             ->first();
 
-        if (! $token || $token->revoked_at !== null) {
+        if (! $token || $token->prefix === 'oauth' || $token->revoked_at !== null || ($token->user_id !== null && ! User::whereKey($token->user_id)->where('is_active', true)->where('is_admin', true)->exists())) {
             return null;
         }
 
