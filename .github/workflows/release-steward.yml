@@ -32,13 +32,12 @@ jobs:
           dev_sha="$(git rev-parse HEAD)"
           run_id="$(gh run list \
             --repo "$GITHUB_REPOSITORY" \
-            --workflow ci.yml \
             --branch dev \
             --commit "$dev_sha" \
             --status success \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId // empty')"
+            --limit 20 \
+            --json databaseId,workflowName \
+            --jq '[.[] | select(.workflowName == "CI")][0].databaseId // empty')"
 
           if [[ -z "$run_id" ]]; then
             echo "No successful CI run exists for dev commit $dev_sha."
