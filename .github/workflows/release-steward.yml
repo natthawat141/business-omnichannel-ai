@@ -1,0 +1,108 @@
+name: Release Steward
+
+on:
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: release-steward
+  cancel-in-progress: false
+
+jobs:
+  prepare-release:
+    name: Promote dev and prepare production PR
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: dev
+          fetch-depth: 0
+
+      - name: Verify successful CI for the exact dev commit
+        id: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          dev_sha="$(git rev-parse HEAD)"
+          run_id="$(gh run list \
+            --repo "$GITHUB_REPOSITORY" \
+            --workflow ci.yml \
+            --branch dev \
+            --commit "$dev_sha" \
+            --status success \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId // empty')"
+
+          if [[ -z "$run_id" ]]; then
+            echo "No successful CI run exists for dev commit $dev_sha."
+            exit 1
+          fi
+
+          echo "dev_sha=$dev_sha" >> "$GITHUB_OUTPUT"
+          echo "ci_run_id=$run_id" >> "$GITHUB_OUTPUT"
+
+      - name: Fast-forward staging to the tested commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch origin dev stg
+
+          if ! git merge-base --is-ancestor origin/stg origin/dev; then
+            echo "stg is not an ancestor of dev; refusing a non-fast-forward promotion."
+            exit 1
+          fi
+
+          git push origin "${{ steps.release.outputs.dev_sha }}:refs/heads/stg"
+
+      - name: Create or refresh the production pull request
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DEV_SHA: ${{ steps.release.outputs.dev_sha }}
+          CI_RUN_ID: ${{ steps.release.outputs.ci_run_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          body_file="$RUNNER_TEMP/release-pr.md"
+          cat > "$body_file" <<EOF
+          ## Release candidate
+
+          Release Steward fast-forwarded \`stg\` to tested commit \`$DEV_SHA\`.
+
+          - CI evidence: https://github.com/$GITHUB_REPOSITORY/actions/runs/$CI_RUN_ID
+          - Source flow: \`dev\` -> \`stg\` -> \`main\`
+          - Production has not been deployed.
+
+          ## Required human gate
+
+          Before merging, the product owner must review migrations, staging smoke-test evidence,
+          production backup, and rollback readiness. Merging this PR does not itself authorize a
+          production deployment.
+          EOF
+
+          pr_number="$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --base main \
+            --head stg \
+            --state open \
+            --json number \
+            --jq '.[0].number // empty')"
+
+          if [[ -n "$pr_number" ]]; then
+            gh pr edit "$pr_number" --repo "$GITHUB_REPOSITORY" --body-file "$body_file"
+            echo "Updated production PR #$pr_number"
+          else
+            gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head stg \
+              --title "release: promote staging to production" \
+              --body-file "$body_file"
+          fi
