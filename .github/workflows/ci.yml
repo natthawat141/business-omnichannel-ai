@@ -66,14 +66,14 @@ jobs:
         run: npm ci
       - name: Generate test application key
         run: php artisan key:generate
-      - name: Backend tests
-        run: php artisan test
       - name: Frontend typecheck
         run: npm run typecheck
       - name: Frontend lint
         run: npm run lint
       - name: Frontend build
         run: npm run build
+      - name: Backend tests
+        run: php artisan test
 
   ai-service:
     name: AI service
