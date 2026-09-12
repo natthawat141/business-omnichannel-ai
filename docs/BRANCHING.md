@@ -15,7 +15,8 @@ This repository uses three long-lived branches:
 2. Run the relevant backend tests, frontend typecheck, lint and build. Record what was not
    verified. Scan the staged diff for credentials and local artifacts before pushing.
 3. Review and merge into `dev`.
-4. Promote the exact reviewed commit from `dev` to `stg`. Deploy the same immutable image digest
+4. Ask the Release Steward to promote the exact green commit from `dev` to `stg` and prepare the
+   `stg` to `main` pull request. Deploy the same immutable image digest
    to staging and verify migrations, health, login, critical UI/API flows and rollback commands.
 5. Promote the exact staging commit from `stg` to `main` after product-owner approval. Production
    deploy uses the same tested image digest; it does not rebuild a different artifact.
@@ -33,6 +34,11 @@ This repository uses three long-lived branches:
   when rolling application code back.
 - The current VM is a development/deployment target, not part of the branch contract. CI may build
   an OCI-compatible image in a hosted runner and deploy it to GCP, Oracle Cloud or another VPS.
+- `dev` to `stg` is automation-managed and fast-forward only. `stg` to `main` is always a pull
+  request and requires the product owner's production approval.
+
+See [Release Steward](RELEASE_STEWARD.md) for the agent prompt, CI contract, promotion command, and
+handoff format.
 
 ## Initial branch state (2026-09-12)
 

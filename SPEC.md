@@ -9,6 +9,7 @@
   Images runtime credentials and a live image-upload/channel end-to-end test remain pending. Production
   configuration is not source controlled.
 - Date: 2026-08-17
+- Last operational update: 2026-09-12
 - Product owner: User
 - Tech lead: Codex
 - Implementation: Codex, only after product-owner approval; `agy` is not used
@@ -61,6 +62,22 @@ Example customer questions that Version 1 must support:
 - Packaging target: one reviewed Docker Compose deployment bundle for the VM.
 - Production secrets are injected on the VM and never committed.
 - Build, push, migration, and deployment require separate product-owner approval.
+
+### Confirmed Release Steward Workflow (approved 2026-09-12)
+
+- **FR-OPS-001:** Use `dev` as the integration branch, `stg` as the release-candidate branch,
+  and `main` as the production source of truth.
+- **FR-OPS-002:** A coding agent may inspect repository state, run approved checks, prepare commits,
+  push reviewed work to `dev`, fast-forward `stg` to an exact green `dev` commit, and create or update
+  a `stg` to `main` pull request. It must not merge `main`, deploy production, run production
+  migrations, or issue credentials without a separate explicit product-owner approval.
+- **FR-OPS-003:** Repository CI verifies Management backend tests, frontend typecheck/lint/build,
+  the Python AI service tests/syntax, and the document-intake agent test suite without using Docker
+  on the product owner's Mac.
+- **AC-OPS-001:** One Release Steward command refuses a non-fast-forward promotion or a `dev` commit
+  without a successful CI run, advances `stg`, and maintains one production pull request.
+- **AC-OPS-002:** Codex, Claude Code, Gemini CLI, and GitHub Copilot receive the same canonical
+  repository rules through thin agent-specific instruction wrappers.
 
 ## 3. Users and Roles
 
