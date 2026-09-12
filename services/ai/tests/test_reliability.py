@@ -36,6 +36,59 @@ def test_custom_attributes_match_chatwoot_replacement_contract():
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             await ChatwootClient(settings(), client).custom_attributes(1, 2, {"ai_completed_message_id": "10"})
     asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("phase", ["flex", "state"])
+def test_no_reply_when_human_takes_over_during_preparation(monkeypatch, phase):
+    from ai_service import main
+    state = {"status": "open", "custom_attributes": {}, "contact_inbox": {"source_id": "Usynthetic"}}
+    sends = []
+    async def answer(*args, **kwargs):
+        return "synthetic answer"
+    async def profile(*args, **kwargs):
+        return {}
+    monkeypatch.setattr(main, "grounded_answer", answer)
+    monkeypatch.setattr(main, "cached_business_profile", profile)
+    def transport(request):
+        path = request.url.path
+        if path.endswith("/conversations/2"):
+            return httpx.Response(200, json=state)
+        if path.endswith("/messages") and request.method == "GET":
+            return httpx.Response(200, json={"payload": []})
+        if path.endswith("/catalog/search"):
+            return httpx.Response(200, json={"data": [{"id": 1}]})
+        if path.endswith("/flex/carousel"):
+            state["custom_attributes"]["ai_mode"] = "human"
+            return httpx.Response(200, json={"type": "flex"})
+        if path.endswith("/custom_attributes"):
+            state["custom_attributes"] = {**json.loads(request.content)["custom_attributes"], "ai_mode": "human"}
+            return httpx.Response(200, json={})
+        if request.method == "POST":
+            sends.append(path)
+        return httpx.Response(200, json={})
+    async def scenario():
+        cfg = replace(settings(), line_channel_access_token="synthetic" if phase == "flex" else "")
+        event = {"id": 91, "account": {"id": 1}, "conversation": {"id": 2}, "content": "คอนโด", "message_type": "incoming"}
+        async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+            await main.process(cfg, event, client)
+        assert sends == []
+        assert state["custom_attributes"]["ai_mode"] == "human"
+    asyncio.run(scenario())
+
+
+def test_pending_handoff_does_not_reopen_resolved_conversation():
+    from ai_service.main import handoff
+    writes = []
+    def transport(request):
+        if request.method == "GET":
+            return httpx.Response(200, json={"status": "resolved", "custom_attributes": {"ai_mode": "human", "ai_handoff_pending": True}})
+        writes.append(request)
+        return httpx.Response(200, json={})
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+            await handoff(ChatwootClient(settings(), client), 1, 2, "customer_request")
+        assert writes == []
+    asyncio.run(scenario())
     assert attrs == {"external_crm": "keep", "ai_catalog_filters": "saved", "ai_completed_message_id": "10"}
 
 
