@@ -50,7 +50,8 @@ jobs:
         run: cp .env.example .env
       - uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.3'
+          # composer.lock currently resolves Symfony 8.1, which requires PHP >= 8.4.1.
+          php-version: '8.4'
           extensions: mbstring, dom, fileinfo, sqlite3, pdo_sqlite
           coverage: none
           tools: composer:v2
