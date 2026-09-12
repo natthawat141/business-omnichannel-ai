@@ -234,6 +234,9 @@ only channel/conversation path for both integrations.
 
 ## Runtime Configuration
 
+Read [reliability fixes and rollout gates](docs/operations/reliability.md) before enabling the AI
+worker in production. CI success is not proof of atomic Chatwoot ownership or live delivery.
+
 | Variable or file | Purpose | Handling |
 | --- | --- | --- |
 | `CHATWOOT_HOSTNAME`, `MANAGEMENT_HOSTNAME`, `AI_HOSTNAME` | Public HTTPS hostnames used by Caddy | VM `.env` |

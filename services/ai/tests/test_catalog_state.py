@@ -210,7 +210,7 @@ def test_process_asks_one_clarification_before_handoff_on_empty_knowledge() -> N
 
     transport = asyncio.run(scenario())
 
-    assert transport.attributes["ai_mode"] == "ai"
+    assert "ai_mode" not in transport.attributes  # normal replies never write ownership
     assert "ai_handoff_reason" not in transport.attributes
     assert transport.attributes["ai_zero_result_streak"] == 1
     assert transport.public_messages == [ZERO_RESULT_CLARIFICATION]

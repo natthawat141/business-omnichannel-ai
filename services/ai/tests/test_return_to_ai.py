@@ -181,11 +181,21 @@ def test_conversation_updated_without_return_label_is_ignored_cheaply() -> None:
 
 def test_handoff_applies_human_handling_label() -> None:
     calls: list[tuple[str, str, object]] = []
+    state = {"id": 1, "status": "open", "labels": [], "custom_attributes": {}}
 
     def transport(request: httpx.Request) -> httpx.Response:
         calls.append((request.method, request.url.path, request.content))
         if request.method == "GET" and request.url.path.endswith("/conversations/1"):
-            return httpx.Response(200, json={"id": 1, "status": "open", "labels": [], "custom_attributes": {}})
+            return httpx.Response(200, json=state)
+        if request.method == "POST":
+            import json
+            body = json.loads(request.content)
+            if request.url.path.endswith("/custom_attributes"):
+                state["custom_attributes"] = body["custom_attributes"]
+            elif request.url.path.endswith("/assignments"):
+                state["team_id"] = body["team_id"]
+            elif request.url.path.endswith("/labels"):
+                state["labels"] = body["labels"]
         return httpx.Response(200, json={})
 
     async def scenario() -> None:
