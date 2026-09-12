@@ -58,4 +58,12 @@ class DatabaseSeederTest extends TestCase
         $_ENV[$name] = $value;
         $_SERVER[$name] = $value;
     }
+
+    public function test_demo_seeding_preserves_existing_business_profile(): void
+    {
+        $profile = \App\Models\BusinessProfile::current();
+        $profile->update(['business_name' => 'Owner edited business']);
+        $this->seed(\Database\Seeders\RealEstateDemoSeeder::class);
+        $this->assertSame('Owner edited business', $profile->fresh()->business_name);
+    }
 }
