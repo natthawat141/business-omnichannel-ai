@@ -1,13 +1,16 @@
-# AI Bot Chatwoot
+# Business Omnichannel AI
 
-Development and releases follow [`dev` → `stg` → `main`](docs/BRANCHING.md).
+Development and releases follow [`development` → `staging` → `main`](docs/operations/branching.md).
+
+Start with the [documentation index](docs/README.md) for architecture, product design, integrations,
+and release operations. GitHub repository: [business-omnichannel-ai](https://github.com/natthawat141/business-omnichannel-ai).
 
 > A single-business omnichannel AI assistant for LINE and WhatsApp, with Chatwoot
 > as the conversation workspace and Laravel Management as the business-knowledge source of truth.
 
 ## Overview
 
-AI Bot Chatwoot helps a business answer customer questions using current, structured business
+Business Omnichannel AI helps a business answer customer questions using current, structured business
 data rather than a static prompt. Customers message the business through Chatwoot-connected
 channels; the AI retrieves only the relevant catalog or knowledge records, prepares a grounded
 reply, and hands the conversation to a shared Chatwoot team whenever human judgement is needed.
@@ -69,7 +72,7 @@ flowchart LR
 ```
 
 The detailed runtime, message lifecycle, ownership boundaries, and deployment topology are in
-[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+[docs/architecture/overview.md](docs/architecture/overview.md).
 
 ## Conversation and Data Flow
 
@@ -110,6 +113,9 @@ infra/chatwoot/        Chatwoot bootstrap and container-specific guidance
 infra/caddy/           HTTPS reverse-proxy configuration
 infra/deploy/          VM environment bootstrap script
 docs/                  Architecture and implementation documentation
+assets/branding/       Original brand assets (served app assets remain inside apps/management/public)
+examples/              Standalone installation examples
+tools/                 Maintained CLI and MCP source packages
 compose.yml            Full local/VM Docker Compose stack
 SPEC.md                Version 1 product and technical contract
 AGENTS.md              Engineering rules and architecture boundaries
@@ -224,12 +230,12 @@ has its own setup guide:
 | Document | Description |
 | --- | --- |
 | [SPEC.md](SPEC.md) | Approved Version 1 scope, requirements, acceptance criteria, and production-readiness gate |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Detailed runtime architecture, lifecycle, security boundaries, and deployment topology |
-| [docs/LINE_RICH_MENU_FLEX_SETUP.md](docs/LINE_RICH_MENU_FLEX_SETUP.md) | Environment-neutral LINE Rich Menu and Flex API integration guide |
+| [docs/architecture/overview.md](docs/architecture/overview.md) | Detailed runtime architecture, lifecycle, security boundaries, and deployment topology |
+| [docs/integrations/line-rich-menu-flex.md](docs/integrations/line-rich-menu-flex.md) | Environment-neutral LINE Rich Menu and Flex API integration guide |
 | [apps/management/docs/IMPORT_FORMAT.md](apps/management/docs/IMPORT_FORMAT.md) | Current 23-column property import and backward-compatible 9-column format |
 | [AGENTS.md](AGENTS.md) | Engineering workflow, ownership rules, and security constraints |
-| [PRODUCT.md](PRODUCT.md) | Management product intent and UX principles |
-| [DESIGN.md](DESIGN.md) | Management design-system direction and accessibility requirements |
+| [Product overview](docs/product/overview.md) | Management product intent and UX principles |
+| [Design system](docs/design/management-design-system.md) | Management design-system direction and accessibility requirements |
 
 ## Current Status
 

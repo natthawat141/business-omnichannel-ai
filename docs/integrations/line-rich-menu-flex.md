@@ -4,7 +4,7 @@
 Rich Menu ID, Inbox ID, Channel ID, hostname หรือ production account ใด ค่าจริงทั้งหมดต้องมาจาก
 runtime configuration/secret manager และต้องตรวจใน environment เป้าหมายก่อนใช้งาน
 
-`SPEC.md` และ `docs/ARCHITECTURE.md` เป็น source of truth หากตัวอย่างในเอกสารนี้ขัดกับสองไฟล์นั้น
+`SPEC.md` และ `docs/architecture/overview.md` เป็น source of truth หากตัวอย่างในเอกสารนี้ขัดกับสองไฟล์นั้น
 ให้ยึดเอกสาร canonical และ source/tests ปัจจุบัน
 
 ## 1. เส้นทางข้อความ

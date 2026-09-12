@@ -152,7 +152,7 @@ Feature ปัจจุบัน และห้าม push/deploy หากไ�
 ### ไฟล์ที่คาดว่าจะเปลี่ยน
 
 - `SPEC.md`
-- `docs/ARCHITECTURE.md`
+- `docs/architecture/overview.md`
 - `docs/decisions/ADR-00X-document-intake.md` (ใหม่)
 - `apps/management/tests/Fixtures/Documents/*` (ใหม่; synthetic only)
 - `services/ai/tests/fixtures/documents/*` หาก LLM extraction อยู่ใน AI service
@@ -387,7 +387,7 @@ Root docs/config:
 
 - `.env.example`
 - `compose.yml` เฉพาะ network/config ที่จำเป็นและอนุมัติ
-- `docs/ARCHITECTURE.md`
+- `docs/architecture/overview.md`
 
 ### วิธีตรวจ
 
@@ -890,7 +890,7 @@ root configuration เมื่อ Feature แตะ packaging:
 อัปเดตเฉพาะเมื่อ Feature ที่เกี่ยวข้องได้รับอนุมัติและ implement จริง:
 
 - `SPEC.md` — canonical requirements/acceptance criteria
-- `docs/ARCHITECTURE.md` — ownership, data flow, trust boundaries
+- `docs/architecture/overview.md` — ownership, data flow, trust boundaries
 - `apps/management/README.md` — setup/admin workflow
 - `apps/management/docs/DOCUMENT_INTAKE.md` — file limits, review, retention, errors
 - `apps/management/docs/GOOGLE_DRIVE_INTEGRATION.md` — OAuth/scopes/config เมื่อถึง Feature 6

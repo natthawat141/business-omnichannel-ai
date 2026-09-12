@@ -22,6 +22,6 @@
 
 ## Production gate
 
-- [ ] Product owner explicitly approved merging `stg` to `main`
+- [ ] Product owner explicitly approved merging `staging` to `main`
 - [ ] Production backup and rollback commands are ready
 - [ ] Production deployment is separately authorized

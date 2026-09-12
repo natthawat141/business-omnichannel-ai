@@ -1,7 +1,7 @@
 """Deterministic half of the conversation_eval_v1.json fixture (see
 tests/fixtures/README.md). Only asserts routing decisions that don't require
 a live LLM or human judgment -- answer *quality* is scored separately by a
-human against the same fixture, per AI_BOT_CHATWOOT_MINIMAL_UPGRADE_SPEC.md §10.
+human against the same fixture, per docs/archive/conversational-upgrade-spec.md §10.
 """
 
 import json

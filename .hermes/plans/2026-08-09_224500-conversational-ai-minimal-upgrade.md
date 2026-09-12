@@ -7,7 +7,7 @@ performed in this work session.
 
 ## Decision
 
-Approve the direction of `AI_BOT_CHATWOOT_MINIMAL_UPGRADE_SPEC.md`, with the amendments in
+Approve the direction of `docs/archive/conversational-upgrade-spec.md`, with the amendments in
 this plan. The proposal targets the right causes of a bot-like experience: missing conversation
 history, irrelevant knowledge retrieval, imprecise handoff detection, and catalog follow-up state.
 
@@ -215,7 +215,7 @@ Files:
 - `services/ai/src/ai_service/main.py`
 - `services/ai/src/ai_service/worker.py`
 - `services/ai/tests/test_health.py` and focused integration tests
-- `.env.example`, `services/ai/.env.example`, `README.md`, `docs/ARCHITECTURE.md`, and `SPEC.md`
+- `.env.example`, `services/ai/.env.example`, `README.md`, `docs/architecture/overview.md`, and `SPEC.md`
   when configuration or behavior changes
 
 Work:
@@ -284,7 +284,7 @@ When behavior or configuration changes, update the same change set in:
 
 - `SPEC.md` for acceptance criteria, state semantics, retry limits, and TTL;
 - `README.md` for setup/configuration and the single-worker limitation;
-- `docs/ARCHITECTURE.md` for history retrieval, custom-attribute state, queue/worker flow, and
+- `docs/architecture/overview.md` for history retrieval, custom-attribute state, queue/worker flow, and
   delivery uncertainty;
 - `services/ai/README.md` for API and runtime behavior.
 

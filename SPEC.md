@@ -65,19 +65,24 @@ Example customer questions that Version 1 must support:
 
 ### Confirmed Release Steward Workflow (approved 2026-09-12)
 
-- **FR-OPS-001:** Use `dev` as the integration branch, `stg` as the release-candidate branch,
+- **FR-OPS-001:** Use `development` as the integration branch, `staging` as the release-candidate branch,
   and `main` as the production source of truth.
 - **FR-OPS-002:** A coding agent may inspect repository state, run approved checks, prepare commits,
-  push reviewed work to `dev`, fast-forward `stg` to an exact green `dev` commit, and create or update
-  a `stg` to `main` pull request. It must not merge `main`, deploy production, run production
+  push reviewed work to `development`, fast-forward `staging` to an exact green `development` commit, and create or update
+  a `staging` to `main` pull request. It must not merge `main`, deploy production, run production
   migrations, or issue credentials without a separate explicit product-owner approval.
 - **FR-OPS-003:** Repository CI verifies Management backend tests, frontend typecheck/lint/build,
   the Python AI service tests/syntax, and the document-intake agent test suite without using Docker
   on the product owner's Mac.
-- **AC-OPS-001:** One Release Steward command refuses a non-fast-forward promotion or a `dev` commit
-  without a successful CI run, advances `stg`, and maintains one production pull request.
+- **AC-OPS-001:** One Release Steward command refuses a non-fast-forward promotion or a `development` commit
+  without a successful CI run, advances `staging`, and maintains one production pull request.
 - **AC-OPS-002:** Codex, Claude Code, Gemini CLI, and GitHub Copilot receive the same canonical
   repository rules through thin agent-specific instruction wrappers.
+- **FR-OPS-004 (approved 2026-09-12):** Name the repository `business-omnichannel-ai` and use
+  the full branch names `development` and `staging`. Organize shared documentation by purpose
+  under `docs/`, source branding under `assets/branding/`, and installation examples under
+  `examples/`. Preserve framework conventions, database migrations, public API paths and runtime
+  service directories. Keep `SPEC.md` and agent discovery files at the repository root.
 
 ## 3. Users and Roles
 

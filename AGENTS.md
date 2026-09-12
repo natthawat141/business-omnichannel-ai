@@ -138,11 +138,11 @@ An implementation slice is done only when:
 
 ## Release Steward
 
-- The canonical branch and promotion contract is `docs/BRANCHING.md`; the operating playbook is
-  `docs/RELEASE_STEWARD.md`.
+- The canonical branch and promotion contract is `docs/operations/branching.md`; the operating playbook is
+  `docs/operations/release-steward.md`.
 - A coding agent may manage routine integration work allowed by FR-OPS-001–003: inspect CI, prepare
-  review evidence, push approved work to `dev`, run the Release Steward workflow, and maintain the
-  `stg` to `main` pull request.
+  review evidence, push approved work to `development`, run the Release Steward workflow, and maintain the
+  `staging` to `main` pull request.
 - A coding agent must stop before merging `main`, deploying production, running production
   migrations, changing production infrastructure, or creating real credentials. Those actions still
   require a separate explicit product-owner approval.
