@@ -165,6 +165,7 @@ services:
     environment: &ai-environment
       MANAGEMENT_BASE_URL: http://management-nginx
       CHATWOOT_BASE_URL: http://chatwoot-rails:3000
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-deepseek/deepseek-v4-flash-0731}
       AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
       CHATWOOT_WEBHOOK_TOKEN: ${CHATWOOT_WEBHOOK_TOKEN}
       AI_QUEUE_REDIS_URL: ${AI_QUEUE_REDIS_URL:-${REDIS_URL}}

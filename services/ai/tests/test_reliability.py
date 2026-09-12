@@ -36,6 +36,7 @@ def test_custom_attributes_match_chatwoot_replacement_contract():
         async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
             await ChatwootClient(settings(), client).custom_attributes(1, 2, {"ai_completed_message_id": "10"})
     asyncio.run(scenario())
+    assert attrs == {"external_crm": "keep", "ai_catalog_filters": "saved", "ai_completed_message_id": "10"}
 
 
 @pytest.mark.parametrize("phase", ["flex", "state"])
@@ -89,7 +90,6 @@ def test_pending_handoff_does_not_reopen_resolved_conversation():
             await handoff(ChatwootClient(settings(), client), 1, 2, "customer_request")
         assert writes == []
     asyncio.run(scenario())
-    assert attrs == {"external_crm": "keep", "ai_catalog_filters": "saved", "ai_completed_message_id": "10"}
 
 
 def test_set_open_uses_status_endpoint():

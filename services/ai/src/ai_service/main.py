@@ -726,12 +726,17 @@ async def handoff(chatwoot: ChatwootClient, account_id: int, conversation_id: in
         raise UpstreamError("handoff_team_not_configured")
     latest = await chatwoot.conversation(account_id, conversation_id)
     attrs = latest.get("custom_attributes") or {}
+    # A staff resolution/snooze cancels an incomplete automated route.
+    if latest.get("status") in {"resolved", "snoozed"}:
+        return
     if not is_ai_eligible(latest, chatwoot.settings) and not (attrs.get("ai_mode") == "human" and attrs.get("ai_handoff_pending") is True):
         return
     await chatwoot.custom_attributes(account_id, conversation_id, {"ai_mode": "human", "ai_handoff_reason": reason, "ai_handoff_pending": True})
     locked = await chatwoot.conversation(account_id, conversation_id)
     if nested(locked, "custom_attributes", "ai_mode") != "human":
         raise UpstreamError("handoff_lock_not_confirmed")
+    if locked.get("status") in {"resolved", "snoozed"}:
+        return
     await chatwoot.set_open(account_id, conversation_id)
     await chatwoot.assign_team(account_id, conversation_id, chatwoot.settings.chatwoot_team_id)
     # Visible in the conversation list without opening custom attributes, and
