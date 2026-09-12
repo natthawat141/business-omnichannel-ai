@@ -1,0 +1,1 @@
+<div class="code-block"><div class="code-toolbar"><span>{{ $label }}</span><button type="button" data-copy="{{ $id }}" aria-label="คัดลอก {{ $label }}">Copy <span aria-hidden="true">⧉</span></button></div><pre tabindex="0"><code id="{{ $id }}">{{ $code }}</code></pre></div>

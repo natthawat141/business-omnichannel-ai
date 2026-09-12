@@ -67,7 +67,7 @@ class ImportExportController extends Controller
             $preview = $previewer->analyze(Storage::disk('local')->path($storedPath));
         } catch (Throwable $e) {
             Storage::disk('local')->delete($storedPath);
-            Log::warning('Package import preview failed', ['message' => $e->getMessage()]);
+            Log::warning('Package import preview failed', ['failure_class' => $e::class]);
 
             return redirect()->route('admin.imports.index')->with('error', $e->getMessage());
         }
@@ -125,7 +125,7 @@ class ImportExportController extends Controller
                 "เพิ่ม {$import->imported} รายการเป็นฉบับร่าง, ข้ามรหัสซ้ำ {$import->skipped} รายการ, ผิดพลาด ".count($errors).' รายการ'
             );
         } catch (Throwable $e) {
-            Log::error('Package import failed', ['filename' => $batch['filename'], 'message' => $e->getMessage()]);
+            Log::error('Package import failed', ['failure_class' => $e::class]);
 
             return redirect()->route('admin.imports.index')->with('error', 'นำเข้าไม่สำเร็จและไม่มีการเขียนทับข้อมูลเดิม');
         } finally {

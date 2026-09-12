@@ -24,7 +24,7 @@ flowchart TD
         sidekiq["Chatwoot Sidekiq\nAsync Delivery Jobs"]
         cwdb[("PostgreSQL\nChatwoot DB")]
         cwredis[("Redis\nChatwoot Cache")]
-        inbox["LINE Business Inbox #1\nAgent Bot Webhook"]
+        inbox["Configured Chatwoot Inbox\nAgent Bot Webhook"]
     end
 
     subgraph ai["AI Orchestration Boundary"]
@@ -51,7 +51,7 @@ flowchart TD
     sidekiq <--> cwredis
 
     %% AI Pipeline
-    inbox -->|Webhook POST /webhook/chatwoot/{token}| webhook
+    inbox -->|Webhook POST /webhooks/chatwoot/{token}| webhook
     webhook -->|rpush event| queue
     queue -->|consume| worker
 
@@ -91,10 +91,16 @@ flowchart TD
      * `POST /api/v1/catalog/search`: Retrieves real available condo/house listings with attribute filters.
      * `GET /api/v1/business-profile`: Retrieves authoritative business hours, contact info, and company metadata.
      * `GET /api/v1/faqs` & `GET /api/v1/knowledge`: Retrieves verified business policies and Q&As.
-     * `GET /api/v1/flex/carousel` & `GET /api/v1/flex/{loan|consignment|about}`: Returns structured **LINE Flex Message JSON**.
+     * `POST /api/v1/flex/carousel` with `{ "item_ids": [...] }`: Builds the AI search carousel from
+       exact ordered result IDs after rechecking eligibility. The category-wide `GET` carousel remains
+       a compatibility/manual-discovery route and is not used to replace AI search results.
+     * `GET /api/v1/flex/catalog/{id}` and `GET /api/v1/flex/{loan|consignment|about}`: Return structured **LINE Flex Message JSON**.
 
 4. **Response Delivery (Hybrid Text + Flex Cards):**
-   * **Structured UI (Flex Cards):** For catalog listings and official services, the AI Worker pushes official **LINE Flex Carousel & Bubble Cards** directly via the **LINE Messaging Push API**.
+   * **Structured UI (Flex Cards):** For catalog listings, the AI Worker sends the exact ordered Catalog
+     Search result IDs to Management. Management rechecks active, published, effective, and available state,
+     builds cards only for eligible IDs, and the worker pushes that **LINE Flex Carousel** through the
+     **LINE Messaging Push API**. Official service cards use their dedicated Management endpoints.
    * **Conversational AI Text:** The AI Worker invokes **OpenRouter LLM** with grounded context to synthesize a natural, polite Thai chat response and sends it through the **Chatwoot Messages API**.
 
 5. **Human Handoff & Return to AI:**
@@ -107,6 +113,7 @@ flowchart TD
 |---|---|---|
 | Conversation history and inbox state | Chatwoot | Rails API and PostgreSQL (`enable_auto_assignment = false` on shared inboxes) |
 | Business catalog and knowledge | Laravel Management | Authenticated read API and MySQL |
+| Primary property image files | Cloudflare Images | One-time direct upload; Management stores the HTTPS delivery URL |
 | AI orchestration and retries | Python AI service | FastAPI, Redis queue, worker |
 | Model completion | OpenRouter | Outbound HTTPS from AI service |
 | Human handoff | Chatwoot team | Team assignment; no individual agent binding until staff claims |
@@ -115,6 +122,17 @@ flowchart TD
 1. **Inbox Auto-Assignment Disabled:** Inboxes MUST keep `enable_auto_assignment = false`. All incoming AI-managed conversations remain in `Open` status and `Unassigned` so that all human agents and administrators see them in real-time in the central queue (`Unassigned` / `All`).
 2. **Clean Delivery on LINE:** When an interactive Flex Message is pushed to LINE, the worker records the AI response in Chatwoot as a **Private Note** (`private = true`) to prevent sending duplicate raw text bubbles to the customer's LINE chat while maintaining full audit logs for staff.
 3. **Secrets Isolation:** Secrets are supplied through runtime environment files and are excluded from Git. Customer messages are not written to application logs.
+4. **Exact Result/Card Parity:** Search responses and property cards use one ordered set of item IDs. A
+   category-wide or latest-listing query must not replace the search result when replying to a customer.
+5. **Consent Before Relaxation:** A zero-result property search asks the customer before removing location,
+   price, or attribute constraints. Category and sale/rent intent remain applied to the relaxed query.
+   If the relaxed query is also empty, the worker sends a deterministic no-result message and does not call
+   the LLM to invent alternatives.
+6. **Primary Image:** An authenticated admin may request a short-lived upload URL from Management and
+   upload one JPEG, PNG, or WebP image directly to Cloudflare Images. The Cloudflare API token remains in
+   the Management runtime; only the HTTPS delivery URL is stored as `primary_image_url` and becomes the
+   property card hero. Cards without a primary image omit the hero block, and empty specifications use
+   neutral copy. Automatic deletion of orphaned/replaced images is outside lean Version 1.
 
 ## Deployment topology
 

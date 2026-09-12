@@ -31,7 +31,7 @@ class KnowledgeApiController extends Controller
 
     public function meta(Request $request): JsonResponse
     {
-        $packages = ServicePackage::query()->active()->published()->effective();
+        $packages = ServicePackage::query()->publicOffer()->active()->published()->effective();
 
         $data = [
             'schema_version' => self::SCHEMA_VERSION,
@@ -52,7 +52,7 @@ class KnowledgeApiController extends Controller
 
     public function packages(Request $request): JsonResponse
     {
-        $query = ServicePackage::query()->active()->published()->effective()
+        $query = ServicePackage::query()->publicOffer()->active()->published()->effective()
             ->with('category:id,name_th');
 
         $this->applyUpdatedSince($query, $request);

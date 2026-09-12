@@ -31,7 +31,9 @@ class BusinessProfileApiTest extends TestCase
 
     public function test_a_valid_token_can_read_the_profile(): void
     {
-        BusinessProfile::query()->create([
+        // The application owns a singleton through current(); do not rely on
+        // an auto-increment sequence being reset by a transactional test DB.
+        BusinessProfile::current()->update([
             'business_name' => 'Aion Property',
             'business_description' => 'ให้บริการซื้อขายและเช่าอสังหาริมทรัพย์',
         ]);
@@ -41,6 +43,18 @@ class BusinessProfileApiTest extends TestCase
         $response->assertJsonPath('data.business_name', 'Aion Property')
             ->assertJsonPath('data.business_description', 'ให้บริการซื้อขายและเช่าอสังหาริมทรัพย์')
             ->assertJsonPath('meta.version', '1.0');
+    }
+
+    public function test_current_uses_an_existing_profile_even_if_its_database_id_is_not_one(): void
+    {
+        $profile = BusinessProfile::query()->create([
+            'id' => 99,
+            'business_name' => 'Existing business',
+            'business_description' => 'Existing singleton fixture',
+        ]);
+
+        $this->assertSame($profile->id, BusinessProfile::current()->id);
+        $this->assertDatabaseCount('business_profile', 1);
     }
 
     public function test_defaults_exist_even_before_any_admin_edit(): void

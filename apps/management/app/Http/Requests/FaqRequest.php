@@ -9,7 +9,7 @@ class FaqRequest extends FormRequest
     public function authorize(): bool
     {
         // Route is already guarded by auth + policy; admins may write.
-        return (bool) $this->user()?->is_admin;
+        return (bool) $this->user()?->canEditBusiness();
     }
 
     /**

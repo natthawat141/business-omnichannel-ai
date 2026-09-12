@@ -15,6 +15,8 @@ import {
     CheckCircle2,
     AlertCircle,
     Building2,
+    Users,
+    ClipboardCheck,
 } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import type { PageProps } from '@/types';
@@ -28,15 +30,18 @@ interface NavItem {
 }
 
 const nav: NavItem[] = [
+    { label: 'จัดการผู้ใช้', href: '/admin/users', icon: Users, match: '/admin/users' },
     { label: 'แดชบอร์ด', href: routes.dashboard, icon: LayoutDashboard, match: '/admin/dashboard' },
     { label: 'คู่มือ / Guide', href: routes.guide, icon: BookOpenCheck, match: '/admin/guide' },
-    { label: 'หมวดบริการ', href: routes.categories.index, icon: Tags, match: '/admin/package-categories' },
-    { label: 'แพ็กเกจ', href: routes.packages.index, icon: Package, match: '/admin/packages' },
+    { label: 'ประเภททรัพย์', href: routes.categories.index, icon: Tags, match: '/admin/package-categories' },
+    { label: 'รายการทรัพย์', href: routes.packages.index, icon: Package, match: '/admin/packages' },
     { label: 'คำถามพบบ่อย', href: routes.faqs.index, icon: HelpCircle, match: '/admin/faqs' },
     { label: 'คลังความรู้', href: routes.knowledge.index, icon: BookOpen, match: '/admin/knowledge' },
     { label: 'โปรไฟล์ธุรกิจ', href: routes.businessProfile.edit, icon: Building2, match: '/admin/business-profile' },
-    { label: 'นำเข้าแพ็กเกจ', href: routes.imports.index, icon: FileSpreadsheet, match: '/admin/imports' },
+    { label: 'นำเข้ารายการทรัพย์', href: routes.imports.index, icon: FileSpreadsheet, match: '/admin/imports' },
+    { label: 'ตรวจข้อเสนอ AI', href: routes.agentChanges.index, icon: ClipboardCheck, match: '/admin/agent-changes' },
     { label: 'โทเคน API', href: routes.apiTokens.index, icon: KeyRound, match: '/admin/api-tokens' },
+    { label: 'เชื่อมต่อ AI', href: '/admin/ai-setup', icon: KeyRound, match: '/admin/ai-setup' },
 ];
 
 const THEME_STORAGE_KEY = 'aion3-theme';
@@ -106,15 +111,22 @@ export default function AdminLayout({ title, actions, children }: { title: strin
     const sidebar = (
         <nav className="flex h-full flex-col gap-1 p-3">
             <div className="px-3 py-4">
-                <img
-                    src="/img/aionelogo.jpeg"
-                    alt="Aion3"
-                    className="h-12 w-auto max-w-full object-contain object-left"
-                />
-                <p className="mt-1 text-sm font-semibold tracking-tight text-zinc-900">Knowledge Management</p>
-                <p className="text-xs text-slate-500">จัดการข้อมูลที่ AI ใช้ตอบ</p>
+                <span className="brand-logo-frame">
+                    <img
+                        src="/img/aion3-logo.png"
+                        alt="Aion3"
+                        className="brand-logo h-12 w-auto max-w-full object-contain object-left"
+                    />
+                </span>
+                <p className="mt-1 text-sm font-semibold tracking-tight text-zinc-900">Property Management</p>
+                <p className="text-xs text-slate-500">จัดการทรัพย์และข้อมูลที่ AI ใช้ตอบ</p>
             </div>
-            {nav.map((item) => {
+            {nav.filter((item) => {
+                if (auth.user?.role === 'admin') return true;
+                if (['/admin/users', '/admin/api-tokens', '/admin/ai-setup', '/admin/agent-changes', '/admin/documents'].includes(item.match)) return false;
+                if (!auth.user?.can_edit && ['/admin/imports', '/admin/business-profile'].includes(item.match)) return false;
+                return true;
+            }).map((item) => {
                 const Icon = item.icon;
                 return (
                     <Link

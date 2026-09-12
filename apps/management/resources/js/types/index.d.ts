@@ -1,4 +1,6 @@
 export interface AuthUser {
+    role: 'admin' | 'editor' | 'viewer' | 'none';
+    can_edit: boolean;
     id: number;
     name: string;
     email: string;
@@ -55,9 +57,15 @@ export interface PackageCategory {
 }
 
 export interface ServicePackage {
+    profile: string | null;
+    profile_data: Record<string, string | number | string[] | { min: number | null; max: number | null; unit: string } | null> | null;
     id: number;
     category_id: number | null;
     item_type: string;
+    record_kind: 'group' | 'variant' | 'offer';
+    parent_id: number | null;
+    lock_version: number;
+    archived_at: string | null;
     category?: Pick<PackageCategory, 'id' | 'name_th'>;
     code: string | null;
     name_th: string;
@@ -68,7 +76,7 @@ export interface ServicePackage {
     sale_price: number | null;
     currency: string;
     transaction_type: 'sale' | 'rent' | 'service' | null;
-    availability: 'available' | 'reserved' | 'unavailable';
+    availability: 'available' | 'reserved' | 'sold' | 'rented' | 'unavailable' | 'unknown';
     duration_minutes: number | null;
     terms: string | null;
     keywords: string | null;
@@ -77,12 +85,14 @@ export interface ServicePackage {
     district: string | null;
     subdistrict: string | null;
     project_name: string | null;
+    primary_image_url: string | null;
+    map_url?: string | null;
     bedrooms: number | null;
     bathrooms: number | null;
     usable_area_sqm: number | null;
     land_area_sqw: number | null;
     floor: number | null;
-    attributes: Record<string, string> | null;
+    attributes: Record<string, unknown> | null;
     is_active: boolean;
     is_published: boolean;
     effective_from: string | null;
@@ -129,6 +139,25 @@ export interface KnowledgeEntry {
     version: number;
     is_active: boolean;
     reviewed_at: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+}
+
+export type DocumentSourceStatus = 'uploaded' | 'extracting' | 'ready' | 'ocr_required' | 'failed' | 'cancelled';
+
+export interface DocumentSource {
+    id: number;
+    user_id: number | null;
+    user?: { id: number; name: string; email: string } | null;
+    source_type: 'upload' | 'google_drive';
+    original_filename: string;
+    mime_type: string;
+    file_size: number;
+    file_hash: string;
+    page_count: number | null;
+    status: DocumentSourceStatus;
+    failure_reason: string | null;
+    file_exists?: boolean;
     created_at: string | null;
     updated_at: string | null;
 }

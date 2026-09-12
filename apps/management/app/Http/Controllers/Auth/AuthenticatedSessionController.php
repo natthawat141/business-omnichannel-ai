@@ -17,13 +17,18 @@ class AuthenticatedSessionController extends Controller
         return Inertia::render('Auth/Login');
     }
 
-    public function store(LoginRequest $request): RedirectResponse
+    public function store(LoginRequest $request): \Symfony\Component\HttpFoundation\Response
     {
         $request->authenticate();
 
         $request->session()->regenerate();
 
-        return redirect()->intended(route('admin.dashboard'));
+        $redirect = redirect()->intended(route('admin.dashboard'));
+        // OAuth consent is a full HTML page, not an Inertia component.
+        if ($request->header('X-Inertia') && parse_url($redirect->getTargetUrl(), PHP_URL_PATH) === '/oauth/authorize') {
+            return Inertia::location($redirect->getTargetUrl());
+        }
+        return $redirect;
     }
 
     public function destroy(Request $request): RedirectResponse

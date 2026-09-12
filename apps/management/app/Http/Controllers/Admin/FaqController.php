@@ -22,7 +22,7 @@ class FaqController extends Controller
         $category = $request->query('category');
         $isActive = $request->query('is_active');
 
-        $faqs = Faq::query()
+        $faqs = Faq::query()->unarchived()
             ->when($search, fn ($q) => $q->where(function ($sub) use ($search) {
                 $sub->where('question_th', 'like', "%{$search}%")
                     ->orWhere('answer_th', 'like', "%{$search}%");
@@ -83,8 +83,8 @@ class FaqController extends Controller
     {
         Gate::authorize('delete', $faq);
 
-        $faq->delete();
+        $faq->archive();
 
-        return redirect()->route('admin.faqs.index')->with('success', 'ลบคำถามเรียบร้อยแล้ว');
+        return redirect()->route('admin.faqs.index')->with('success', 'เก็บคำถามเข้าคลังแล้ว และกู้คืนได้');
     }
 }

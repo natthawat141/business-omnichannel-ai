@@ -22,6 +22,8 @@ class PackageCategoryResource extends JsonResource
             'name_en' => $this->name_en,
             'slug' => $this->slug,
             'description' => $this->description,
+            'attribute_definitions' => $this->attribute_definitions,
+            'schema_version' => $this->schema_version,
             'sort_order' => $this->sort_order,
             'is_active' => (bool) $this->is_active,
             'packages_count' => $this->whenCounted('packages'),

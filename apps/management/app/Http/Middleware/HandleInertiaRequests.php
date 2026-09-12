@@ -35,6 +35,8 @@ class HandleInertiaRequests extends Middleware
                     'id' => $user->id,
                     'name' => $user->name,
                     'email' => $user->email,
+                    'role' => $user->effectiveRole(),
+                    'can_edit' => $user->canEditBusiness(),
                 ] : null,
             ],
             'flash' => [

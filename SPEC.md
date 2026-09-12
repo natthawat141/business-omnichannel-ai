@@ -3,10 +3,12 @@
 ## Document Status
 
 - Version: 1.0
-- Status: Product direction approved; Version 1 implementation deployed to the isolated GCP VM
-  and verified through service/API health checks. Real channel credentials and owned production
-  hostname remain deployment inputs, not source-controlled configuration.
-- Date: 2026-08-08
+- Status: Product direction approved. The Version 1 stack and lean real-estate slice in FR-RE-001–005
+  are deployed to the configured GCP VM. Management/AI health, the additive property-image migration,
+  the admin direct-upload route/assets, and the internal AI-to-Catalog API path are verified. Cloudflare
+  Images runtime credentials and a live image-upload/channel end-to-end test remain pending. Production
+  configuration is not source controlled.
+- Date: 2026-08-17
 - Product owner: User
 - Tech lead: Codex
 - Implementation: Codex, only after product-owner approval; `agy` is not used
@@ -38,6 +40,10 @@ Example customer questions that Version 1 must support:
 8. The LLM provider is OpenRouter and the configured model is `deepseek/deepseek-v4-flash-0731`.
 9. `OPENROUTER_API_KEY` is supplied through the runtime environment only. Its value must never appear in source control, documentation, logs, container images, or test fixtures.
 10. The deployment target is the existing GCP VM environment managed through Bangna Hos CLI. Exact project, zone, instance, network, and production identifiers remain deployment configuration and are not committed to this specification.
+11. Version 1 uses a lean real-estate-first product experience for the current business: customer copy,
+    Management navigation, forms, and result cards may use property/listing terminology. Internal models,
+    API concepts, database tables, and compatibility routes remain domain-neutral catalog contracts; this
+    decision does not introduce multi-tenancy or industry-specific orchestration branches.
 
 ### Confirmed LLM Configuration
 
@@ -188,6 +194,47 @@ The canonical concept is `Catalog Item`. Existing packages are one catalog item 
 - **FR-CAT-006:** Non-real-estate businesses may leave real-estate fields unused and define their own category attributes without changing orchestrator code.
 - **FR-CAT-007:** Existing package records and `/api/v1/packages` remain usable during migration.
 
+### 6.4a Lean Real-Estate Presentation Profile
+
+- **FR-RE-001:** The current Management experience may label catalog items as properties/listings and
+  prioritize real-estate fields, while internal `packages` storage and existing API routes remain backward
+  compatible.
+- **FR-RE-002:** A property carousel generated for an AI search must use the exact bounded item IDs returned
+  by that search, in the same order. The carousel endpoint must independently recheck active, published,
+  effective, and available state before rendering.
+- **FR-RE-003:** If an exact property search has no result, the AI asks permission before relaxing filters.
+  After consent it may drop location, price, and category-attribute constraints, but retains property category
+  and sale/rent intent. If the relaxed search is also empty, it gives a deterministic no-result response and
+  offers human assistance without asking the LLM to invent alternatives.
+- **FR-RE-004:** A property may define one validated HTTPS primary image for the lean Version 1 card. An
+  authenticated Management admin may upload that image through a short-lived Cloudflare Images Direct
+  Creator Upload URL; the Cloudflare API token remains server-side and only the public delivery URL is
+  stored with the property. The Catalog API and export/import contract carry that URL, and LINE Flex uses it
+  as the hero image. Multi-image galleries and automatic deletion of replaced/orphaned hosted images remain
+  outside this lean slice.
+- **FR-RE-005:** The property import template includes structured category, sale/rent, availability,
+  location, room, area, floor, and primary-image fields. Existing nine-column package files remain accepted
+  and all imports continue to create unpublished drafts without overwriting duplicate codes.
+- **FR-RE-006 (approved 2026-09-11):** Management may use Cloudflare R2 as an alternative primary-image
+  storage provider without changing the stored catalog contract. Laravel generates a short-lived, single-
+  object presigned PUT URL and returns only the required upload headers and configured public HTTPS URL to
+  the authenticated admin browser. The R2 secret access key remains server-side, while the access key ID
+  appears only as the standard signer identifier in the presigned URL. Credentials are scoped to the selected
+  bucket and injected only at runtime. The bucket must allow the Management origin through bounded CORS and
+  expose reads through a production custom domain; the `r2.dev` development URL is not a production target.
+  Cloudflare Images remains supported for backward compatibility. Automatic deletion of abandoned,
+  replaced, or orphaned objects remains outside this slice.
+
+- **FR-RE-007 (approved 2026-09-11):** Create/edit catalog forms place primary-image editing
+  first, then clearly grouped identity, price, location, specifications, advanced profile and
+  publication controls. Add optional `map_url` (HTTPS, maximum 2048 characters) for Google
+  Maps or another map provider, persisted independently of category/profile. Expose it through
+  existing catalog resources and staff proposal validation without changing approval gates.
+  Never fetch, embed or infer coordinates from the URL. Omitted updates preserve it; null clears it.
+  Preserve import column contracts in this slice. Proposal tables keep badges/actions unbroken
+  and scroll within their container at narrow widths. Development approval only; no production
+  migration, deployment or CI/CD infrastructure change is implied.
+
 ### 6.5 Catalog Search API
 
 - **FR-SEARCH-001:** Management exposes an authenticated, read-only catalog search operation at `POST /api/v1/catalog/search`.
@@ -249,6 +296,117 @@ The canonical concept is `Catalog Item`. Existing packages are one catalog item 
 - **FR-FAIL-003:** Availability and price-sensitive results must identify stale data internally and must not be presented as confirmed-current beyond the allowed stale window.
 - **FR-FAIL-004:** If no safe source exists, the AI says it cannot confirm and offers handoff; it never guesses.
 - **FR-FAIL-005:** AI transport failure returns a retryable failure without locking the customer into human mode unless deterministic policy independently requires handoff.
+
+### 6.9 AI Connection Setup (approved 2026-09-05)
+
+**FR-KNOWLEDGE-UI-001 (approved 2026-09-11):** Knowledge index supports responsive cards
+and the existing table, selectable through a labeled view toggle. Default to cards; preserve
+view in search/filter/pagination URLs. Cards show title, plain-text body excerpt, type,
+category, version, review date, status and existing authorized actions. No data or permission
+changes, no new dependencies; development verification only, not production deployment.
+
+**FR-DOC-RETIRE-001 (approved 2026-09-11):** Retire the Management PDF upload/document
+administration UI at `/admin/documents`, including navigation, detail and mutation endpoints.
+Authenticated administrator requests to the retired path return 410; authentication and staff
+boundaries remain. Remove the upload/lifecycle implementation and replace its obsolete tests
+with retirement/non-mutation tests. Preserve existing private files, DocumentSource records and
+proposal evidence. No database/storage purge or production deployment is authorized by this
+change. External AI clients read customer PDFs and submit structured proposals; existing
+metadata read APIs/MCP remain compatible for historical sources. This supersedes earlier
+document-upload UI instructions, not the catalog proposal or AI connection capabilities.
+
+- **FR-SETUP-001:** Management provides an admin-only Thai setup page for CLI, Codex, Claude Code, ChatGPT Work and Claude Cowork, explaining verified capabilities and prerequisites per client.
+- **FR-SETUP-002:** Admins can issue document-metadata-only keys with a default lifetime of 60 minutes; allow 15, 60 or 240 minutes. Keys are hashed at rest, returned once in a no-store JSON response, never embedded in URLs, page props, browser storage or generated shell commands.
+- **FR-SETUP-003:** The page shows expiry and recent keys with immediate revocation. Expired keys are rejected server-side, with no automatic lifetime extension. Issuance is rate-limited and protected by admin session and CSRF.
+- **FR-SETUP-004:** Instructions distinguish existing stdio document_list/document_get from remote MCP. ChatGPT Work/Cowork must not display a working connector URL until a compatible authenticated remote transport is implemented and verified. Existing tooling does not read PDF contents or modify catalog records.
+- **FR-SETUP-005 (approved 2026-09-06):** Publish a credential-free document-intake SKILL.md and llms.txt index. Setup provides open/download links and a copyable prompt containing only the public skill URL. Explain actual tool limits and missing cloud transport; reading a skill does not authenticate or install a connector.
+- **FR-SETUP-006 (approved 2026-09-06):** Default to Agent setup with a per-client, visible copyable installation prompt, public installation guide and downloadable credential-free CLI/MCP package. Keep Manual setup available. Separate operator-entered keys from prompts and show verification steps without simulated connection success. Cloud clients remain unavailable until FR-SETUP-004 is satisfied.
+- **FR-SETUP-007 (approved 2026-09-06):** Publish a readable HTML documentation page with section navigation, copyable examples, mobile layout and machine-readable links. Add Antigravity local stdio setup with placeholder-only JSON, operator-entered credentials in private global config, scoped expiring setup keys and explicit verification limits. Preserve existing clients and Markdown URLs.
+
+### 6.9.1 Browser-authorized remote MCP (approved 2026-09-11)
+
+- **FR-SETUP-008:** Add a remote HTTP MCP transport using maintained Laravel MCP and
+  Passport authorization-code/PKCE support. The user enters existing credentials only
+  on Management's login page, then explicitly approves named scopes. Login alone is
+  not authorization. Never ask the AI to collect passwords, cookies or bearer keys.
+- **FR-SETUP-009:** Start with document metadata and explicitly scoped read/proposal
+  capabilities. Preserve FR-AGENT-004/005/006: no remote approve, apply, publish, SQL or
+  PDF download. Enforce active administrator ownership, token expiry, revocation and
+  account security-version changes on every call. Keep stable proposal ownership
+  across token refresh. Use short-lived access tokens and bounded refresh lifetime.
+- **FR-SETUP-010:** Default AI Setup to simple browser connection instructions; keep
+  local keys/CLI in Advanced. Provide credential-free Copy prompt, documentation,
+  connection history and revoke controls. Do not claim that copying a prompt installs
+  any client or proves connectivity. Expose compatibility limits honestly. Development
+  and synthetic tests run on the existing GCP dev VM; production enablement and real
+  client/account compatibility require separately recorded verification.
+
+### 6.9a External staff agent data proposals (approved 2026-09-06)
+
+The product owner approved `.hermes/plans/2026-09-06_150803-agent-managed-catalog-crud.md`.
+Implement and review one vertical slice at a time. This approval covers development on the
+existing VM, not production migration/deployment, live credential issuance or a real-data pilot.
+FR-SETUP-002/004 describe the existing read-only package: preserve it until an explicitly
+versioned opt-in proposal client is delivered. Customer-facing AI remains read-only.
+
+- **FR-AGENT-001:** Keep MySQL and existing domain tables. Extend catalog with validated category
+  definitions/schema versions and, in the next schema slice, group/variant/offer, parent references,
+  optimistic versions and recoverable archive. No arbitrary SQL, table creation or schema activation by AI.
+- **FR-AGENT-002:** Shared validation supports string, integer, decimal, boolean, enum, string_list and
+  numeric_range, bounded keys/values, canonical units and explicit nullable values. Missing fields are
+  not invented. Reject unknown keys and core-field duplication. Keep legacy definitions/data unchanged;
+  typed definitions are opt-in and incompatible conversion requires a separately reviewed migration.
+- **FR-AGENT-003:** Bounded per-field evidence links to private DocumentSource records when available;
+  external-only references are unverified. External clients read PDFs; Management does not add OCR/LLM
+  infrastructure. Never infer stock, price or business policy from missing brochure data.
+- **FR-AGENT-004:** Immutable change sets support create/update/archive/restore, preview, submission,
+  status, idempotency and transactional all-or-none apply with version/schema revalidation. Preview and
+  proposal submission never change live business records. Record protected source/revision history.
+- **FR-AGENT-005:** Separate opt-in staff agent abilities from customer read keys. No automatic permission
+  upgrade. Keys cannot approve/apply/publish. Expiry stops new requests; accepted proposals use current
+  admin authority. Security revocation suspends pending proposals until trust review.
+- **FR-AGENT-006:** Admin session plus CSRF approves one immutable batch with visible diff, sources and
+  issues. Creates are drafts; publish requires separate explicit confirmation. Updates to published data
+  disclose immediate customer impact. Agent-supplied confirmation never bypasses the server gate.
+- **FR-AGENT-007:** Preserve old API, document tools, legacy forms and 9/23-column imports. Typed catalog
+  import/export must roundtrip JSON without coercion. Groups/variants/archived rows must not become
+  inventory results. Only allowlisted query fields/operators may be searched.
+- **FR-AGENT-008:** Deliver catalog first, then FAQ/knowledge adapters. Each slice includes synthetic tests,
+  compatibility and privacy evidence, review notes and unverified items. MySQL concurrency, client pilots,
+  backup/restore and rollout gates remain mandatory before production enablement.
+
+### 6.9b Optional catalog profiles (approved 2026-09-11)
+
+The product owner requested a structured `property_project` profile and a COCO PARC
+brochure-based draft example. This slice covers development and isolated sample validation.
+
+- **FR-PROFILE-001:** Add nullable, domain-neutral `profile` and `profile_data` fields on
+  catalog records. Server-owned, versioned profiles are opt-in and independent of category
+  attributes. `property_project` belongs to a group; `property_layout` describes a variant's
+  room type and canonical sqm range. Reuse core name/location fields, and existing source history.
+  Do not add property-specific database columns or rewrite existing category definitions.
+- **FR-PROFILE-002:** Validate bounded profile fields across model, admin and agent writes.
+  Reject unknown profiles/keys, mismatched record kinds, invalid dates/coordinates/counts,
+  nonstandard facility values and reversed ranges. Omitted values stay unknown. Profile data
+  replaces the whole profile object when supplied; omission on update preserves it.
+- **FR-PROFILE-003:** Staff API/MCP exposes the profile schema, version, allowed fields and
+  bounded exact filters for profile, record kind, parent and facility. Project facts come from
+  groups, layout ranges from variants, and price/availability only from actual offers.
+  Offers may attach directly to a group or to a variant. Preserve customer inventory eligibility
+  and the existing human approval/publication gates; customer group-retrieval integration is a
+  separate slice, not claimed by this schema-first delivery.
+- **FR-PROFILE-004:** Provide a page-referenced, nonpublished COCO PARC proposal example,
+  validated through preview/submit/admin apply in isolated tests. Do not infer current construction
+  status, price, vacancy, coordinates, or source dates from missing or hidden brochure text.
+  Include review documentation and honest retrieval/deployment limits.
+
+### 6.10 Management Users (approved 2026-09-06)
+
+- **FR-USER-001:** Admins manage bounded, paginated staff accounts with name, unique email, role (admin/editor/viewer) and enabled state. No hard deletion or tenant provisioning. Preserve existing administrators and deny legacy non-admin accounts without an explicit staff role.
+- **FR-USER-002:** Enforce roles server-side: editors maintain business content, viewers read it, and only admins manage users, documents and credentials. Disabled accounts cannot log in or reuse a session. Serialize account changes and never remove the final enabled administrator.
+- **FR-USER-003:** Admins generate a one-time, expiring password-setup link through a no-store response, to share privately. Passwords are hashed; links/passwords are never audit data or page props. Email delivery requires separately configured mail transport and is not claimed by this slice.
+- **FR-USER-004:** Newly web-issued API/MCP keys have an owner. Disabling or changing a user's role revokes their owned keys and invalidates sessions. Legacy ownerless service keys remain untouched and are documented explicitly.
+- **FR-USER-005:** Record user-management events with actor ID, target ID, event and timestamp, without passwords, links or names/emails in audit payloads. Tests cover authorization, validation, final-admin protection, disabled sessions, reset expiry/reuse and credential ownership. Catalog-wide revision history remains a separate slice.
 
 ## 7. State Model
 
@@ -323,6 +481,16 @@ The canonical concept is `Catalog Item`. Existing packages are one catalog item 
 - **AC-012:** No active runtime message or decision assumes a teacher, student, lesson, or language school.
 - **AC-013:** Relevant management backend tests, frontend typecheck/lint/build, and orchestrator tests/typecheck/build pass where repository rules permit execution.
 - **AC-014:** Delivery documentation lists all configuration, migrations, verification evidence, known limitations, and production steps not executed.
+- **AC-015:** Search text and any LINE property carousel are grounded in the same ordered catalog item IDs;
+  an ineligible ID is omitted even if supplied by the orchestrator.
+- **AC-016:** Zero exact property results never trigger an automatic broad recommendation. Relaxed results
+  appear only after explicit customer consent and retain category plus sale/rent intent.
+- **AC-017:** An authenticated admin can obtain a short-lived Cloudflare Images or R2 upload URL and upload
+  one primary property image without receiving a provider secret. The resulting HTTPS delivery URL is returned by
+  Catalog API and rendered in Flex; an HTTP image URL is rejected. Empty property specs use neutral copy
+  rather than invented property qualities.
+- **AC-018:** The current property template imports structured search/card fields as a draft, while the
+  legacy nine-column template remains accepted.
 
 ## 11. Implementation Sequence
 
@@ -349,3 +517,4 @@ Passing unit tests is not proof of production readiness. Production enablement a
 - representative catalog data quality review;
 - log privacy review;
 - controlled rollout with a rollback path.
+ a rollback path.

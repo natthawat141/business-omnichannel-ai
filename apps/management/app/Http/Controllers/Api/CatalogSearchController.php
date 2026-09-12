@@ -83,7 +83,7 @@ class CatalogSearchController extends Controller
         }
 
         $query = ServicePackage::query()
-            ->active()->published()->effective()
+            ->publicOffer()->active()->published()->effective()
             ->with('category:id,name_th,slug')
             ->where('availability', 'available');
 
@@ -113,7 +113,7 @@ class CatalogSearchController extends Controller
 
     public function show(ServicePackage $package): JsonResponse
     {
-        abort_unless($package->is_active && $package->is_published && $package->availability === 'available'
+        abort_unless($package->record_kind === 'offer' && $package->archived_at === null && $package->is_active && $package->is_published && $package->availability === 'available'
             && ($package->effective_from === null || $package->effective_from->lte(today()))
             && ($package->effective_until === null || $package->effective_until->gte(today())), 404);
 
@@ -180,6 +180,8 @@ class CatalogSearchController extends Controller
             'currency' => $item->currency, 'location_text' => $item->location_text,
             'province' => $item->province, 'district' => $item->district, 'subdistrict' => $item->subdistrict,
             'project_name' => $item->project_name, 'bedrooms' => $item->bedrooms, 'bathrooms' => $item->bathrooms,
+            'primary_image_url' => $item->primary_image_url,
+            'map_url' => $item->map_url,
             'usable_area_sqm' => $item->usable_area_sqm !== null ? (float) $item->usable_area_sqm : null,
             'land_area_sqw' => $item->land_area_sqw !== null ? (float) $item->land_area_sqw : null,
             'floor' => $item->floor, 'updated_at' => $item->updated_at?->toIso8601String(),

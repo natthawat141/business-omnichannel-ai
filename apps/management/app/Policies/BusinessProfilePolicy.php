@@ -12,16 +12,16 @@ class BusinessProfilePolicy
      */
     public function before(User $user): ?bool
     {
-        return $user->is_admin ? true : null;
+        return ! $user->is_active ? false : ($user->is_admin ? true : null);
     }
 
     public function view(User $user, BusinessProfile $profile): bool
     {
-        return $user->is_admin;
+        return $user->canViewBusiness();
     }
 
     public function update(User $user, BusinessProfile $profile): bool
     {
-        return $user->is_admin;
+        return $user->canEditBusiness();
     }
 }

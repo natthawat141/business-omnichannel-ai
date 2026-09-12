@@ -3,7 +3,7 @@
     reverse_proxy chatwoot-rails:3000
 }
 
-{$MANAGEMENT_HOSTNAME} {
+{$MANAGEMENT_HOSTNAME}, mgmt.aionecloud.space {
     encode zstd gzip
     reverse_proxy management-nginx:80
 }

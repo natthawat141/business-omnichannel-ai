@@ -35,4 +35,20 @@ return [
         ],
     ],
 
+    'cloudflare_images' => [
+        'account_id' => env('CLOUDFLARE_IMAGES_ACCOUNT_ID'),
+        'api_token' => env('CLOUDFLARE_IMAGES_API_TOKEN'),
+        'delivery_base_url' => env('CLOUDFLARE_IMAGES_DELIVERY_BASE_URL'),
+        'variant' => env('CLOUDFLARE_IMAGES_VARIANT', 'public'),
+        'direct_upload_expiry_minutes' => (int) env('CLOUDFLARE_IMAGES_DIRECT_UPLOAD_EXPIRY_MINUTES', 10),
+    ],
+
+    'property_images' => [
+        'driver' => env('PROPERTY_IMAGE_UPLOAD_DRIVER', 'cloudflare_images'),
+    ],
+
+    'cloudflare_r2' => [
+        'direct_upload_expiry_minutes' => (int) env('R2_DIRECT_UPLOAD_EXPIRY_MINUTES', 10),
+    ],
+
 ];

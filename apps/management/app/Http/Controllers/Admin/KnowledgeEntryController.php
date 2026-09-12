@@ -22,7 +22,7 @@ class KnowledgeEntryController extends Controller
         $type = $request->query('type');
         $isActive = $request->query('is_active');
 
-        $entries = KnowledgeEntry::query()
+        $entries = KnowledgeEntry::query()->unarchived()
             ->when($search, fn ($q) => $q->where(function ($sub) use ($search) {
                 $sub->where('title', 'like', "%{$search}%")
                     ->orWhere('body', 'like', "%{$search}%");
@@ -43,7 +43,8 @@ class KnowledgeEntryController extends Controller
         return Inertia::render('Knowledge/Index', [
             'entries' => KnowledgeEntryResource::collection($entries),
             'types' => $types,
-            'filters' => ['search' => $search, 'type' => $type, 'is_active' => $isActive],
+            'filters' => ['search' => $search, 'type' => $type, 'is_active' => $isActive,
+                'view' => $request->query('view') === 'table' ? 'table' : 'cards'],
         ]);
     }
 
@@ -83,8 +84,8 @@ class KnowledgeEntryController extends Controller
     {
         Gate::authorize('delete', $knowledge);
 
-        $knowledge->delete();
+        $knowledge->archive();
 
-        return redirect()->route('admin.knowledge.index')->with('success', 'ลบความรู้เรียบร้อยแล้ว');
+        return redirect()->route('admin.knowledge.index')->with('success', 'เก็บความรู้เข้าคลังแล้ว และกู้คืนได้');
     }
 }

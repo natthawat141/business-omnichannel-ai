@@ -70,10 +70,11 @@ COPY --from=assets /app/public/build ./public/build
 # writable runtime directories are assigned explicitly below.
 RUN chmod -R a+rX .
 
-# php-fpm runs as www-data; it must own writable dirs. The actual contents of
-# storage/ are mounted from a named volume at runtime so uploads survive
-# `compose down` — see docker-compose volumes (mount storage/ + not baked in).
-RUN chown -R www-data:www-data storage bootstrap/cache
+# php-fpm runs as www-data; it must own writable dirs. `storage/` is normally
+# ignored by source control and mounted from a named volume at runtime, so make
+# the empty tree before assigning ownership for reproducible clean builds.
+RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs \
+    && chown -R www-data:www-data storage bootstrap/cache
 
 COPY docker/laravel-entrypoint.sh /usr/local/bin/laravel-entrypoint
 RUN chmod +x /usr/local/bin/laravel-entrypoint

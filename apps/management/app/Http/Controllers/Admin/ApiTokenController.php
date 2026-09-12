@@ -16,6 +16,7 @@ class ApiTokenController extends Controller
         abort_unless((bool) $request->user()?->is_admin, 403);
 
         $tokens = ApiToken::query()
+            ->where('prefix', '!=', 'oauth')
             ->orderByDesc('id')
             ->get()
             ->map(fn (ApiToken $token) => [
@@ -49,7 +50,8 @@ class ApiTokenController extends Controller
             ? now()->addDays((int) $validated['expires_days'])
             : null;
 
-        ['plainText' => $plainText] = ApiToken::issue($validated['name'], ['read'], $expiresAt);
+        ['plainText' => $plainText, 'token' => $token] = ApiToken::issue($validated['name'], ['read'], $expiresAt);
+        $token->forceFill(['user_id' => $request->user()->id])->save();
 
         return redirect()->route('admin.api-tokens.index')
             ->with('plainToken', $plainText)
@@ -59,6 +61,7 @@ class ApiTokenController extends Controller
     public function destroy(Request $request, ApiToken $token): RedirectResponse
     {
         abort_unless((bool) $request->user()?->is_admin, 403);
+        abort_if($token->prefix === 'oauth', 404);
 
         if ($token->is_protected) {
             return redirect()->route('admin.api-tokens.index')

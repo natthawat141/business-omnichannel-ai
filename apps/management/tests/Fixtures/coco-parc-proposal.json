@@ -1,0 +1,285 @@
+{
+  "operations": [
+    {
+      "entity": "catalog",
+      "action": "create",
+      "client_ref": "coco-parc",
+      "payload": {
+        "name_th": "COCO PARC",
+        "name_en": "COCO PARC",
+        "record_kind": "group",
+        "item_type": "property",
+        "profile": "property_project",
+        "location_text": "Rama IV Road, Khlong Toei, Khlong Toei, Bangkok",
+        "province": "Bangkok",
+        "district": "Khlong Toei",
+        "subdistrict": "Khlong Toei",
+        "description_th": "ข้อมูลโครงการจากโบรชัวร์สำหรับตรวจทาน ไม่ใช่รายการยูนิตที่เสนอขายหรือเช่า",
+        "availability": "unknown",
+        "profile_data": {
+          "developer": "Ananda Development",
+          "operator": "Dusit Hospitality Services",
+          "brand": "Dusit",
+          "project_type": "high_rise_condominium",
+          "construction_status": "unknown",
+          "construction_status_as_of": null,
+          "expected_completion": null,
+          "facilities": [
+            "lobby",
+            "pool",
+            "gym",
+            "fitness_studio",
+            "spa",
+            "salon",
+            "garden",
+            "lounge",
+            "concierge"
+          ],
+          "building_count": 1,
+          "storey_count": 37,
+          "unit_count": 444,
+          "parking_spaces": 269,
+          "passenger_lifts": 3,
+          "service_lifts": 1,
+          "latitude": null,
+          "longitude": null,
+          "document_reviewed_on": "2026-09-11",
+          "source_note": "Brochure advertising claims only. Amenities/services are subject to juristic-person rules and availability. Current construction status, prices and vacant units need separate confirmation."
+        }
+      },
+      "sources": [
+        {
+          "external_label": "COCO-PARC-BROCHURE.pdf",
+          "page": 4,
+          "field_paths": [
+            "profile_data.developer",
+            "profile_data.operator",
+            "profile_data.brand",
+            "profile_data.facilities"
+          ]
+        },
+        {
+          "external_label": "COCO-PARC-BROCHURE.pdf",
+          "page": 13,
+          "field_paths": [
+            "name_th",
+            "location_text",
+            "province",
+            "district",
+            "subdistrict",
+            "profile_data.project_type",
+            "profile_data.facilities",
+            "profile_data.building_count",
+            "profile_data.storey_count",
+            "profile_data.unit_count",
+            "profile_data.parking_spaces",
+            "profile_data.passenger_lifts",
+            "profile_data.service_lifts"
+          ]
+        }
+      ]
+    },
+    {
+      "entity": "catalog",
+      "action": "create",
+      "client_ref": "studio",
+      "parent_client_ref": "coco-parc",
+      "payload": {
+        "name_th": "Studio",
+        "record_kind": "variant",
+        "item_type": "property",
+        "profile": "property_layout",
+        "availability": "unknown",
+        "bedrooms": 0,
+        "profile_data": {
+          "layout_type": "studio",
+          "area_range": {
+            "min": 25.5,
+            "max": 27,
+            "unit": "sqm"
+          }
+        }
+      },
+      "sources": [
+        {
+          "external_label": "COCO-PARC-BROCHURE.pdf",
+          "page": 13,
+          "field_paths": [
+            "name_th",
+            "profile_data.layout_type",
+            "profile_data.area_range",
+            "bedrooms"
+          ]
+        }
+      ]
+    },
+    {
+      "entity": "catalog",
+      "action": "create",
+      "client_ref": "one-bed",
+      "parent_client_ref": "coco-parc",
+      "payload": {
+        "name_th": "1 Bedroom",
+        "record_kind": "variant",
+        "item_type": "property",
+        "profile": "property_layout",
+        "availability": "unknown",
+        "bedrooms": 1,
+        "profile_data": {
+          "layout_type": "one_bedroom",
+          "area_range": {
+            "min": 34.5,
+            "max": 48,
+            "unit": "sqm"
+          }
+        }
+      },
+      "sources": [
+        {
+          "external_label": "COCO-PARC-BROCHURE.pdf",
+          "page": 13,
+          "field_paths": [
+            "name_th",
+            "profile_data.layout_type",
+            "profile_data.area_range",
+            "bedrooms"
+          ]
+        }
+      ]
+    },
+    {
+      "entity": "catalog",
+      "action": "create",
+      "client_ref": "one-bed-plus",
+      "parent_client_ref": "coco-parc",
+      "payload": {
+        "name_th": "1 Bedroom+",
+        "record_kind": "variant",
+        "item_type": "property",
+        "profile": "property_layout",
+        "availability": "unknown",
+        "bedrooms": 1,
+        "profile_data": {
+          "layout_type": "one_bedroom_plus",
+          "area_range": {
+            "min": 49.5,
+            "max": 49.5,
+            "unit": "sqm"
+          }
+        }
+      },
+      "sources": [
+        {
+          "external_label": "COCO-PARC-BROCHURE.pdf",
+          "page": 13,
+          "field_paths": [
+            "name_th",
+            "profile_data.layout_type",
+            "profile_data.area_range",
+            "bedrooms"
+          ]
+        }
+      ]
+    },
+    {
+      "entity": "catalog",
+      "action": "create",
+      "client_ref": "two-bed",
+      "parent_client_ref": "coco-parc",
+      "payload": {
+        "name_th": "2 Bedroom",
+        "record_kind": "variant",
+        "item_type": "property",
+        "profile": "property_layout",
+        "availability": "unknown",
+        "bedrooms": 2,
+        "profile_data": {
+          "layout_type": "two_bedroom",
+          "area_range": {
+            "min": 64.5,
+            "max": 66.5,
+            "unit": "sqm"
+          }
+        }
+      },
+      "sources": [
+        {
+          "external_label": "COCO-PARC-BROCHURE.pdf",
+          "page": 13,
+          "field_paths": [
+            "name_th",
+            "profile_data.layout_type",
+            "profile_data.area_range",
+            "bedrooms"
+          ]
+        }
+      ]
+    },
+    {
+      "entity": "catalog",
+      "action": "create",
+      "client_ref": "three-bed",
+      "parent_client_ref": "coco-parc",
+      "payload": {
+        "name_th": "3 Bedroom",
+        "record_kind": "variant",
+        "item_type": "property",
+        "profile": "property_layout",
+        "availability": "unknown",
+        "bedrooms": 3,
+        "profile_data": {
+          "layout_type": "three_bedroom",
+          "area_range": {
+            "min": 101.5,
+            "max": 113.5,
+            "unit": "sqm"
+          }
+        }
+      },
+      "sources": [
+        {
+          "external_label": "COCO-PARC-BROCHURE.pdf",
+          "page": 13,
+          "field_paths": [
+            "name_th",
+            "profile_data.layout_type",
+            "profile_data.area_range",
+            "bedrooms"
+          ]
+        }
+      ]
+    },
+    {
+      "entity": "catalog",
+      "action": "create",
+      "client_ref": "penthouse",
+      "parent_client_ref": "coco-parc",
+      "payload": {
+        "name_th": "Penthouse",
+        "record_kind": "variant",
+        "item_type": "property",
+        "profile": "property_layout",
+        "availability": "unknown",
+        "profile_data": {
+          "layout_type": "penthouse",
+          "area_range": {
+            "min": 134,
+            "max": 234,
+            "unit": "sqm"
+          }
+        }
+      },
+      "sources": [
+        {
+          "external_label": "COCO-PARC-BROCHURE.pdf",
+          "page": 13,
+          "field_paths": [
+            "name_th",
+            "profile_data.layout_type",
+            "profile_data.area_range"
+          ]
+        }
+      ]
+    }
+  ]
+}

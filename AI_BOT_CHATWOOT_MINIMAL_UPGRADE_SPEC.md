@@ -1,5 +1,11 @@
 # AI Bot Chatwoot — Minimal Conversational Upgrade Spec
 
+> **สถานะ: เอกสารประวัติการออกแบบ (historical).** เอกสารนี้บันทึกแผน conversational upgrade เดิม
+> และอาจมีตัวอย่างหรือข้อจำกัดที่ไม่ตรงกับ implementation ปัจจุบัน ห้ามใช้เป็น product contract หรือ
+> deployment guide สำหรับ Version 1 ให้ยึด [`SPEC.md`](SPEC.md), [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+> และ source/tests ปัจจุบันเป็นหลัก โดยเฉพาะ catalog search, zero-result consent, exact-ID Flex carousel,
+> property import และ human handoff
+
 **Repo:** `natthawat141/AI-bot-chatwoot`
 **เป้าหมาย:** ทำให้บอทคุยต่อเนื่องเป็นธรรมชาติ ไม่ใช่ตอบเป็นก้อน ๆ แยกกัน
 **ข้อจำกัด:** ห้ามเพิ่ม infrastructure ใหม่ ห้ามเพิ่ม dependency ใหม่ ห้ามแตกไฟล์ใหม่เกินที่ระบุ

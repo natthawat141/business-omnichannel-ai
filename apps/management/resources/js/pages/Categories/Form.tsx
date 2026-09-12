@@ -27,8 +27,8 @@ export default function CategoryForm({ category }: { category: PackageCategory |
     }
 
     return (
-        <AdminLayout title={editing ? 'แก้ไขหมวดบริการ' : 'เพิ่มหมวดบริการ'}>
-            <Head title={editing ? 'แก้ไขหมวดบริการ' : 'เพิ่มหมวดบริการ'} />
+        <AdminLayout title={editing ? 'แก้ไขประเภททรัพย์' : 'เพิ่มประเภททรัพย์'}>
+            <Head title={editing ? 'แก้ไขประเภททรัพย์' : 'เพิ่มประเภททรัพย์'} />
 
             <Link href={routes.categories.index} className="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700">
                 <ArrowLeft className="h-4 w-4" />
@@ -38,10 +38,10 @@ export default function CategoryForm({ category }: { category: PackageCategory |
             <form onSubmit={submit}>
                 <Card className="mx-auto max-w-2xl space-y-4 p-6">
                     <div className="grid gap-4 sm:grid-cols-2">
-                        <Field label="ชื่อหมวด (ไทย)" error={errors.name_th} required>
+                        <Field label="ชื่อประเภททรัพย์ (ไทย)" error={errors.name_th} required>
                             <TextInput value={data.name_th} onChange={(e) => setData('name_th', e.target.value)} error={errors.name_th} />
                         </Field>
-                        <Field label="ชื่อหมวด (อังกฤษ)" error={errors.name_en}>
+                        <Field label="ชื่อประเภททรัพย์ (อังกฤษ)" error={errors.name_en}>
                             <TextInput value={data.name_en} onChange={(e) => setData('name_en', e.target.value)} error={errors.name_en} />
                         </Field>
                     </div>
@@ -67,7 +67,7 @@ export default function CategoryForm({ category }: { category: PackageCategory |
                     <div className="flex gap-2 pt-2">
                         <Button type="submit" disabled={processing}>
                             <Save className="h-4 w-4" />
-                            {editing ? 'บันทึก' : 'เพิ่มหมวดบริการ'}
+                            {editing ? 'บันทึก' : 'เพิ่มประเภททรัพย์'}
                         </Button>
                         <Link href={routes.categories.index}>
                             <Button type="button" variant="secondary">

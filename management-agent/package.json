@@ -1,0 +1,5 @@
+{
+  "dependencies": {
+    "@local/document-intake-agent": "https://mgmt.aionecloud.space/downloads/document-intake-agent-0.2.0.tgz"
+  }
+}

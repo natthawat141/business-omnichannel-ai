@@ -1,4 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, usePage } from '@inertiajs/react';
+import type { PageProps } from '@/types';
 import { Plus, Pencil } from 'lucide-react';
 import AdminLayout from '@/components/AdminLayout';
 import Pagination from '@/components/Pagination';
@@ -16,10 +17,11 @@ interface Props {
 }
 
 export default function FaqsIndex({ faqs, categories, filters }: Props) {
+    const canEdit = usePage<PageProps>().props.auth.user?.can_edit;
     return (
         <AdminLayout
             title="คำถามที่พบบ่อย"
-            actions={
+            actions={canEdit &&
                 <Link href={routes.faqs.create}>
                     <Button>
                         <Plus className="h-4 w-4" />
@@ -81,7 +83,7 @@ export default function FaqsIndex({ faqs, categories, filters }: Props) {
                                     <Badge active={faq.is_active} />
                                 </Td>
                                 <Td className="text-right">
-                                    <div className="flex items-center justify-end gap-1">
+                                    <div className={canEdit ? 'flex items-center justify-end gap-1' : 'hidden'}>
                                         <Link
                                             href={routes.faqs.edit(faq.id)}
                                             className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm text-slate-600 hover:bg-slate-100"
