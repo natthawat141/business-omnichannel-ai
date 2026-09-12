@@ -141,6 +141,7 @@ class _EmptyKnowledgeTransport:
     def __init__(self) -> None:
         self.attributes: dict[str, object] = {}
         self.public_messages: list[str] = []
+        self.team_id = None
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -152,7 +153,11 @@ class _EmptyKnowledgeTransport:
                 "inbox_id": 1,
                 "meta": {"assignee": {"bot_type": "webhook"}},
                 "custom_attributes": self.attributes,
+                "team_id": self.team_id,
             })
+        if path.endswith("/assignments") and request.method == "POST":
+            self.team_id = json.loads(request.content).get("team_id")
+            return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "GET":
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
