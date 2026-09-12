@@ -23,6 +23,7 @@ from redis import asyncio as redis_async
 from redis.exceptions import RedisError
 
 from .history import build_history
+from .reliable_queue import DeliveryUncertain, reserve_delivery, mark_delivered, mark_rejected
 
 LOG = logging.getLogger("ai_service")
 EXPLICIT_HANDOFF_PHRASES = (
@@ -192,16 +193,23 @@ class ChatwootClient:
     async def conversation(self, account_id: int, conversation_id: int) -> dict[str, Any]:
         return await self._request("GET", f"/api/v1/accounts/{account_id}/conversations/{conversation_id}")
 
-    async def custom_attributes(self, account_id: int, conversation_id: int, attributes: Mapping[str, Any]) -> None:
-        # Chatwoot replaces the complete hash unless merge=true. State writes
-        # must never erase attributes owned by another integration.
-        await self._request("POST", f"/api/v1/accounts/{account_id}/conversations/{conversation_id}/custom_attributes", json={"custom_attributes": dict(attributes), "merge": True})
+    async def custom_attributes(self, account_id: int, conversation_id: int, attributes: Mapping[str, Any], *, require_ai: bool = False) -> bool:
+        # v4.16.2 replaces the whole map. There is no server-side CAS: this
+        # preserves the latest observed values but cannot make HTTP RMW atomic.
+        latest = await self.conversation(account_id, conversation_id)
+        if require_ai and not is_ai_eligible(latest, self.settings):
+            return False
+        current = latest.get("custom_attributes") or {}
+        if not isinstance(current, Mapping):
+            raise UpstreamError("chatwoot_attributes_schema")
+        await self._request("POST", f"/api/v1/accounts/{account_id}/conversations/{conversation_id}/custom_attributes", json={"custom_attributes": {**current, **attributes}})
+        return True
 
     async def assign_team(self, account_id: int, conversation_id: int, team_id: int) -> None:
         await self._request("POST", f"/api/v1/accounts/{account_id}/conversations/{conversation_id}/assignments", json={"team_id": team_id})
 
     async def set_open(self, account_id: int, conversation_id: int) -> None:
-        await self._request("PATCH", f"/api/v1/accounts/{account_id}/conversations/{conversation_id}", json={"status": "open"})
+        await self._request("POST", f"/api/v1/accounts/{account_id}/conversations/{conversation_id}/toggle_status", json={"status": "open"})
 
     async def set_labels(self, account_id: int, conversation_id: int, labels: list[str]) -> None:
         # This endpoint replaces the full label set; it does not merge.
@@ -218,12 +226,18 @@ class ChatwootClient:
         return [item for item in payload if isinstance(item, dict)]
 
     async def message(self, account_id: int, conversation_id: int, content: str, private: bool = False) -> None:
+        # Flex and plain text share one public claim: replay may choose a
+        # different branch after inventory changes, but must not reply twice.
+        operation = f"chatwoot:{account_id}:{conversation_id}:private" if private else "customer-visible"
+        if not await reserve_delivery(operation):
+            return
         try:
             await self._request("POST", f"/api/v1/accounts/{account_id}/conversations/{conversation_id}/messages", json={"content": content, "message_type": "outgoing", "private": private})
         except UpstreamError as exc:
             # A POST timeout has unknown delivery state. The worker must not
             # retry it and risk sending a duplicate customer-visible message.
-            raise UpstreamError("chatwoot_message", delivery_unknown=True) from exc
+            raise DeliveryUncertain("chatwoot_message") from exc
+        await mark_delivered(operation)
 
 
 class ManagementClient:
@@ -305,6 +319,8 @@ class ManagementClient:
 async def line_push_flex(client: httpx.AsyncClient, token: str, to: str, flex_payload: Mapping[str, Any]) -> bool:
     if not token or not to or not to.startswith("U"):
         return False
+    if not await reserve_delivery("customer-visible"):
+        return True
     try:
         res = await client.post(
             "https://api.line.me/v2/bot/message/push",
@@ -316,13 +332,17 @@ async def line_push_flex(client: httpx.AsyncClient, token: str, to: str, flex_pa
             timeout=8.0,
         )
         if res.status_code == 200:
-            LOG.info("line_push_flex success to=%s", to)
+            await mark_delivered("customer-visible")
+            LOG.info("line_push_flex success")
             return True
-        LOG.warning("line_push_flex failed status=%s body=%s", res.status_code, res.text)
+        LOG.warning("line_push_flex failed status=%s", res.status_code)
+        if res.status_code >= 500:
+            raise DeliveryUncertain("line_delivery")
+        await mark_rejected("customer-visible")
         return False
-    except Exception as exc:
-        LOG.warning("line_push_flex error: %s", exc)
-        return False
+    except httpx.HTTPError as exc:
+        LOG.warning("line_push_flex error=%s", type(exc).__name__)
+        raise DeliveryUncertain("line_delivery") from exc
 
 
 def nested(payload: Mapping[str, Any], *keys: str | int) -> Any:
@@ -388,7 +408,7 @@ def is_catalog(message: str) -> bool:
 
 def is_smalltalk(message: str) -> bool:
     lower = normalize_text(message)
-    return any(term in lower for term in SMALLTALK_TERMS)
+    return any(re.search(r"(?<![a-z])" + re.escape(term) + r"(?![a-z])", lower) if term.isascii() else term in lower for term in SMALLTALK_TERMS)
 
 
 def search_query(content: str) -> str:
@@ -460,8 +480,8 @@ def catalog_filters(message: str) -> dict[str, Any]:
         filters["transaction_type"] = "sale"
     if match := re.search(r"(\d+)\s*(?:ห้องนอน|bedroom|bedrooms|bed|beds|베드룸|룸|寝室|卧)", lower):
         filters["attributes"] = {"bedrooms": {"gte": int(match.group(1))}}
-    if match := re.search(r"(?:ไม่เกิน|งบ|under|budget|max)\s*([0-9]+(?:\.[0-9]+)?)\s*(ล้าน|แสน|บาท|m|k|thb|baht)?", lower):
-        value = float(match.group(1))
+    if match := re.search(r"(?:ไม่เกิน|งบ|under|budget|max)\s*([0-9]+(?:,[0-9]{3})*(?:\.[0-9]+)?)\s*(ล้าน|แสน|บาท|m|k|thb|baht)?", lower):
+        value = float(match.group(1).replace(",", ""))
         unit = match.group(2) or "บาท"
         multiplier = 1
         if unit in ("ล้าน", "m"):
@@ -567,6 +587,8 @@ def is_ai_eligible(conversation: Mapping[str, Any], settings: Settings) -> bool:
     status_value = str(conversation.get("status", ""))
     attrs = conversation.get("custom_attributes") or {}
     if not isinstance(attrs, Mapping) or attrs.get("ai_mode", "ai") != "ai" or status_value in {"resolved", "snoozed"}:
+        return False
+    if HUMAN_HANDLING_LABEL in (conversation.get("labels") or []):
         return False
     inbox = conversation.get("inbox_id") or nested(conversation, "inbox", "id")
     if settings.allowed_inbox_ids and inbox not in settings.allowed_inbox_ids:
@@ -704,13 +726,33 @@ def without_labels(labels: list[str], removed: tuple[str, ...]) -> list[str]:
 async def handoff(chatwoot: ChatwootClient, account_id: int, conversation_id: int, reason: str, current_labels: list[str] | None = None) -> None:
     if not chatwoot.settings.chatwoot_team_id:
         raise UpstreamError("handoff_team_not_configured")
-    await chatwoot.custom_attributes(account_id, conversation_id, {"ai_mode": "human", "ai_handoff_reason": reason})
+    latest = await chatwoot.conversation(account_id, conversation_id)
+    attrs = latest.get("custom_attributes") or {}
+    # A staff resolution/snooze cancels an incomplete automated route.
+    if latest.get("status") in {"resolved", "snoozed"}:
+        return
+    if not is_ai_eligible(latest, chatwoot.settings) and not (attrs.get("ai_mode") == "human" and attrs.get("ai_handoff_pending") is True):
+        return
+    await chatwoot.custom_attributes(account_id, conversation_id, {"ai_mode": "human", "ai_handoff_reason": reason, "ai_handoff_pending": True})
+    locked = await chatwoot.conversation(account_id, conversation_id)
+    if nested(locked, "custom_attributes", "ai_mode") != "human":
+        raise UpstreamError("handoff_lock_not_confirmed")
+    if locked.get("status") in {"resolved", "snoozed"}:
+        return
     await chatwoot.set_open(account_id, conversation_id)
     await chatwoot.assign_team(account_id, conversation_id, chatwoot.settings.chatwoot_team_id)
     # Visible in the conversation list without opening custom attributes, and
     # clears any stale return-to-ai request from a previous cycle.
-    labels = without_labels(current_labels or [], (RETURN_TO_AI_LABEL,))
+    latest = await chatwoot.conversation(account_id, conversation_id)
+    labels = without_labels(latest.get("labels") or [], (RETURN_TO_AI_LABEL,))
     await chatwoot.set_labels(account_id, conversation_id, with_label(labels, HUMAN_HANDLING_LABEL))
+    routed = await chatwoot.conversation(account_id, conversation_id)
+    team_id = routed.get("team_id") or nested(routed, "meta", "team", "id") or nested(routed, "team", "id")
+    if routed.get("status") != "open" or team_id != chatwoot.settings.chatwoot_team_id or nested(routed, "custom_attributes", "ai_mode") != "human":
+        raise UpstreamError("handoff_route_not_confirmed")
+    # Routing is complete independently of notification delivery. Later
+    # customer events must never replay an uncertain acknowledgement.
+    await chatwoot.custom_attributes(account_id, conversation_id, {"ai_handoff_pending": False})
     await chatwoot.message(account_id, conversation_id, "รับเรื่องแล้วครับ กำลังส่งต่อให้ทีมเจ้าหน้าที่ดูแลต่อให้")
     await chatwoot.message(account_id, conversation_id, f"AI handoff: {reason}", private=True)
 
@@ -718,7 +760,7 @@ async def handoff(chatwoot: ChatwootClient, account_id: int, conversation_id: in
 async def return_to_ai(chatwoot: ChatwootClient, account_id: int, conversation_id: int, current_labels: list[str]) -> None:
     """Explicit, auditable transition from Human Active back to AI Active (FR-OWN-005, FR-HO-006)."""
     await chatwoot.unassign(account_id, conversation_id)
-    await chatwoot.custom_attributes(account_id, conversation_id, {"ai_mode": "ai", "ai_handoff_reason": ""})
+    await chatwoot.custom_attributes(account_id, conversation_id, {"ai_mode": "ai", "ai_handoff_reason": "", "ai_handoff_pending": False})
     await chatwoot.set_labels(account_id, conversation_id, without_labels(current_labels, (HUMAN_HANDLING_LABEL, RETURN_TO_AI_LABEL)))
     await chatwoot.message(account_id, conversation_id, "Return to AI: staff label", private=True)
 
@@ -734,6 +776,12 @@ async def _process_locked(
     started = time.monotonic()
     chatwoot, management = ChatwootClient(settings, client), ManagementClient(settings, client)
     conversation = await chatwoot.conversation(account_id, conversation_id)
+    # Retry an interrupted route before the normal human-ownership early exit.
+    if nested(conversation, "custom_attributes", "ai_handoff_pending") is True and nested(conversation, "custom_attributes", "ai_mode") == "human":
+        inbox = conversation.get("inbox_id") or nested(conversation, "inbox", "id")
+        if not settings.allowed_inbox_ids or inbox in settings.allowed_inbox_ids:
+            await handoff(chatwoot, account_id, conversation_id, str(nested(conversation, "custom_attributes", "ai_handoff_reason") or "cannot_confirm"))
+        return
     if not is_ai_eligible(conversation, settings):
         LOG.info("ignored_event account=%s conversation=%s reason=ownership", account_id, conversation_id)
         return
@@ -818,7 +866,7 @@ async def _process_locked(
         # empty context (still true -- this never calls the LLM on zero
         # records). SPEC FR-AI-003/§5.5 asks for one focused clarification
         # question before the safe path of human handoff. The streak
-        # survives merge=True custom-attribute writes, so a second
+        # survives read/merge/write custom-attribute updates, so a second
         # consecutive empty-context miss in the same conversation still
         # fails closed to handoff instead of asking forever.
         zero_streak = int(attrs.get("ai_zero_result_streak", 0) or 0)
@@ -863,6 +911,8 @@ async def _process_locked(
                 ][:5]
                 flex_payload = await management.flex_carousel(flex_item_ids) if flex_item_ids else None
                 if flex_payload:
+                    if not is_ai_eligible(await chatwoot.conversation(account_id, conversation_id), settings):
+                        return
                     flex_delivered = await line_push_flex(client, settings.line_channel_access_token, line_user_id, flex_payload)
             else:
                 lower_content = normalize_text(content)
@@ -876,10 +926,15 @@ async def _process_locked(
                 if service_card_type:
                     flex_payload = await management.flex_service_card(service_card_type)
                     if flex_payload:
+                        if not is_ai_eligible(await chatwoot.conversation(account_id, conversation_id), settings):
+                            return
                         flex_delivered = await line_push_flex(client, settings.line_channel_access_token, line_user_id, flex_payload)
 
     if catalog_state:
-        await chatwoot.custom_attributes(account_id, conversation_id, catalog_state)
+        if not await chatwoot.custom_attributes(account_id, conversation_id, catalog_state, require_ai=True):
+            return
+    if not is_ai_eligible(await chatwoot.conversation(account_id, conversation_id), settings):
+        return
     try:
         # When Flex Card is pushed to LINE, record in Chatwoot as private note (private=True)
         # so agents can see the log while customer receives only the interactive Flex Card without duplicate text.
@@ -891,7 +946,7 @@ async def _process_locked(
         raise
 
     try:
-        await chatwoot.custom_attributes(account_id, conversation_id, {"ai_completed_message_id": str(message_id), "ai_mode": "ai"})
+        await chatwoot.custom_attributes(account_id, conversation_id, {"ai_completed_message_id": str(message_id)}, require_ai=True)
     except UpstreamError:
         # Delivery succeeded but marker persistence is uncertain. Do not retry
         # the POST; the next webhook will be guarded by the process lock/state.

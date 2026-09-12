@@ -141,6 +141,7 @@ class _EmptyKnowledgeTransport:
     def __init__(self) -> None:
         self.attributes: dict[str, object] = {}
         self.public_messages: list[str] = []
+        self.team_id = None
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -152,12 +153,16 @@ class _EmptyKnowledgeTransport:
                 "inbox_id": 1,
                 "meta": {"assignee": {"bot_type": "webhook"}},
                 "custom_attributes": self.attributes,
+                "team_id": self.team_id,
             })
+        if path.endswith("/assignments") and request.method == "POST":
+            self.team_id = json.loads(request.content).get("team_id")
+            return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "GET":
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             body = json.loads(request.content)
@@ -205,7 +210,7 @@ def test_process_asks_one_clarification_before_handoff_on_empty_knowledge() -> N
 
     transport = asyncio.run(scenario())
 
-    assert transport.attributes["ai_mode"] == "ai"
+    assert "ai_mode" not in transport.attributes  # normal replies never write ownership
     assert "ai_handoff_reason" not in transport.attributes
     assert transport.attributes["ai_zero_result_streak"] == 1
     assert transport.public_messages == [ZERO_RESULT_CLARIFICATION]
@@ -261,7 +266,7 @@ class _ConversationFlowTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             return httpx.Response(200, json={})
@@ -347,7 +352,7 @@ class _CatalogRelaxationTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             payload = json.loads(request.content)
