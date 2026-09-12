@@ -77,7 +77,7 @@ class _SmalltalkTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             body = json.loads(request.content)

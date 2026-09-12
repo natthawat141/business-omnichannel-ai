@@ -157,7 +157,7 @@ class _EmptyKnowledgeTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             body = json.loads(request.content)
@@ -261,7 +261,7 @@ class _ConversationFlowTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             return httpx.Response(200, json={})
@@ -347,7 +347,7 @@ class _CatalogRelaxationTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             payload = json.loads(request.content)

@@ -63,3 +63,56 @@ def test_line_logs_exclude_recipient_and_response(caplog, status):
         asyncio.run(scenario())
     assert recipient not in caplog.text
     assert "private-response-body" not in caplog.text
+
+
+def test_handoff_resumes_after_routing_failure():
+    from ai_service.main import process, UpstreamError
+    state = {"status": "pending", "custom_attributes": {}, "labels": [], "team_id": None}
+    public = []
+    fail = True
+    def transport(request):
+        nonlocal fail
+        path = request.url.path
+        if request.method == "GET":
+            return httpx.Response(200, json=state)
+        body = json.loads(request.content)
+        if path.endswith("/custom_attributes"):
+            state["custom_attributes"] = body["custom_attributes"]
+        elif path.endswith("/toggle_status"):
+            state["status"] = body["status"]
+        elif path.endswith("/assignments"):
+            if fail:
+                fail = False
+                return httpx.Response(503)
+            state["team_id"] = body["team_id"]
+        elif path.endswith("/labels"):
+            state["labels"] = body["labels"]
+        elif path.endswith("/messages") and not body["private"]:
+            assert state["status"] == "open" and state["team_id"] == 2
+            public.append(body)
+        return httpx.Response(200, json={})
+    async def scenario():
+        event = {"event": "message_created", "id": 90, "account": {"id": 1}, "conversation": {"id": 2}, "content": "ขอคุยกับเจ้าหน้าที่", "message_type": "incoming"}
+        async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+            with pytest.raises(UpstreamError):
+                await process(settings(), event, client)
+            assert not public
+            assert state["custom_attributes"]["ai_mode"] == "human"
+            await process(settings(), event, client)
+            assert len(public) == 1
+            assert state["custom_attributes"]["ai_handoff_pending"] is False
+    asyncio.run(scenario())
+
+
+def test_normal_state_write_refuses_human_takeover():
+    posts = []
+    def transport(request):
+        if request.method == "GET":
+            return httpx.Response(200, json={"custom_attributes": {"ai_mode": "human"}})
+        posts.append(request)
+        return httpx.Response(200, json={})
+    async def scenario():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(transport)) as client:
+            assert not await ChatwootClient(settings(), client).custom_attributes(1, 2, {"ai_completed_message_id": "1"}, require_ai=True)
+            assert not posts
+    asyncio.run(scenario())
