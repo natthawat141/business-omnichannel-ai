@@ -1,5 +1,53 @@
 # Business Omnichannel AI
 
+ระบบผู้ช่วย AI สำหรับธุรกิจ รับบทสนทนาจาก LINE/WhatsApp ผ่าน Chatwoot และใช้ข้อมูลสินค้า
+รายการทรัพย์ FAQ และคลังความรู้จาก Laravel Management ใน repo เดียวมีทั้งแอปจัดการข้อมูล
+AI service เครื่องมือ CLI/MCP และไฟล์สำหรับประกอบระบบบน VM
+
+## เริ่มอ่านตรงนี้: แต่ละระบบอยู่ไหน
+
+| ส่วน | อยู่ที่ไหน | ทำหน้าที่อะไร |
+| --- | --- | --- |
+| **Laravel Management** | [apps/management/](apps/management/) | หน้า admin, ผู้ใช้, catalog, FAQ, knowledge, API และ Remote MCP; เก็บข้อมูลธุรกิจใน MySQL |
+| **หน้าเว็บ Management** | [resources/js/](apps/management/resources/js/) | React + Inertia; backend/controller อยู่ใน [app/](apps/management/app/) และ route อยู่ใน [routes/](apps/management/routes/) |
+| **Chatwoot** | [infra/chatwoot/](infra/chatwoot/) และ [compose.yml](compose.yml) | กล่องข้อความ LINE/WhatsApp, ประวัติแชต, ทีมเจ้าหน้าที่และการส่งต่อ; ใช้ PostgreSQL/Redis ของ Chatwoot |
+| **AI service** | [services/ai/](services/ai/) | Python/FastAPI รับ event จาก Chatwoot, worker ค้นข้อมูลผ่าน Management API, เรียก LLM และส่งคำตอบกลับ |
+| **Remote MCP server** | [app/Mcp/](apps/management/app/Mcp/) และ [routes/ai.php](apps/management/routes/ai.php) | อยู่ภายใน Laravel; ให้ AI client เชื่อม `/mcp` ผ่าน HTTPS และ OAuth |
+| **Local MCP + CLI** | [tools/document-intake-agent/](tools/document-intake-agent/) | TypeScript package สำหรับ AI client ที่เปิด process บนเครื่องได้; ติดต่อ Management ผ่าน HTTP API |
+| **ตัวอย่างติดตั้ง CLI** | [examples/management-agent/](examples/management-agent/) | ตัวอย่าง npm manifest; source ของเครื่องมืออยู่ใน `tools/` |
+| **โครงสร้าง VM** | [infra/](infra/) และ [compose.yml](compose.yml) | Reverse proxy, bootstrap, database และ service definitions |
+
+**Chatwoot ไม่มี source Rails ทั้งโครงการอยู่ใน repo นี้**: เราใช้ container image
+`chatwoot/chatwoot` ตามเวอร์ชันที่ตั้งใน environment ส่วน `infra/chatwoot/` เก็บ configuration
+และ bootstrap ของเรา Laravel กับ Python AI เป็น source ที่เราพัฒนาเองและอยู่ใน repo นี้
+ทั้งสามส่วนเป็นคนละ service แต่ root `compose.yml` ประกอบให้ทำงานร่วมกันได้
+
+ข้อความลูกค้าวิ่งตามเส้นทาง **LINE/WhatsApp → Chatwoot → AI service → Management API**
+แล้ว AI ส่งคำตอบหรือส่งต่อทีมเจ้าหน้าที่กลับผ่าน Chatwoot ส่วนเจ้าหน้าที่แก้ข้อมูลที่ Laravel
+โดยตรง หรือให้ AI client ใช้ MCP เสนอการเปลี่ยนแปลงข้อมูล
+
+## เชื่อม AI ผ่าน MCP หรือ CLI
+
+เริ่มที่หน้า **เชื่อมต่อ AI** ของ Management (`/admin/ai-setup`) เพื่อเลือกวิธีเชื่อมต่อ
+และดูสิทธิ์ที่อนุญาต คู่มือบนเว็บอยู่ที่ `/docs/remote-mcp` และ `/docs/agent-setup`
+โดยใช้ hostname ของ Management ที่คุณติดตั้ง
+
+| วิธี | ใช้เมื่อ | การเชื่อมต่อ |
+| --- | --- | --- |
+| **Remote MCP** | AI client รองรับ Streamable HTTP และ OAuth | URL `https://management.example.com/mcp` → ลงชื่อเข้าใช้ใน browser → อนุญาตสิทธิ์ |
+| **Local MCP (stdio)** | AI client เปิด Node process บนเครื่องได้ | เรียก `document-intake-mcp.js`; process ส่งคำขอไป Management API ด้วย key ที่จำกัดสิทธิ์ |
+| **CLI** | ต้องการสั่งผ่าน terminal/script | เรียก `document-intake.js` เพื่ออ่าน schema, ค้น records และ preview/submit ข้อเสนอ |
+
+AI อ่านข้อมูลได้ตามสิทธิ์ และเสนอการเพิ่ม/แก้ไขข้อมูลด้วย `agent_changes_preview` และ
+`agent_changes_submit` ข้อเสนอรอเจ้าหน้าที่ตรวจและกดใช้ที่ `/admin/agent-changes`
+เครื่องมือชุดปัจจุบันยังไม่มีคำสั่ง approve/apply/publish หรือ SQL ให้ AI เรียกเอง
+API metadata เอกสารเดิมยังอยู่เพื่อความเข้ากันได้ แต่หน้าอัปโหลด PDF ถูกถอดแล้ว;
+การอ่าน PDF ที่ลูกค้าให้เป็นหน้าที่ของ AI client ภายนอก
+
+อ่าน [คู่มือ MCP และ CLI แบบรวม](docs/integrations/mcp-and-cli.md) สำหรับวิธีเลือก transport,
+ตัวอย่างคำสั่ง, ตำแหน่ง source และข้อจำกัดก่อนเชื่อมต่อ การรองรับ OAuth/stdio ของแต่ละ client
+ต้องตรวจจาก client ที่ใช้งานจริง
+
 Development and releases follow [`development` → `staging` → `main`](docs/operations/branching.md).
 
 Start with the [documentation index](docs/README.md) for architecture, product design, integrations,
@@ -99,7 +147,7 @@ The detailed runtime, message lifecycle, ownership boundaries, and deployment to
 | Catalog, knowledge, FAQs, promotions, and availability | Booking, appointments, calendar integration, and reservations |
 | Grounded AI answers and catalog search | Payment collection, payment links, refunds, and financial execution |
 | Team-based human handoff | Direct SQL or database access from the AI/LLM |
-| Real-estate reference data | Vector database or autonomous catalog editing |
+| Real-estate reference data and human-reviewed AI data proposals | Vector database or autonomous approval/publication |
 
 The full product contract, acceptance criteria, and delivery gates are maintained in
 [SPEC.md](SPEC.md).
@@ -204,14 +252,16 @@ placeholder names only. Do not copy real credentials into either file.
 
 ## Local Application Development
 
-Use the root Compose stack for an integrated environment. For focused development, each component
-has its own setup guide:
+Run the root Compose stack on the development VM for an integrated environment. Do not start Docker
+on the product owner's Mac. GitHub CI runs the application checks on hosted runners. For focused
+development, each component has its own setup guide:
 
 | Component | Guide | Common checks |
 | --- | --- | --- |
 | Management | [apps/management/README.md](apps/management/README.md) | `php artisan test`, `npm run typecheck`, `npm run lint`, `npm run build` |
 | AI service | [services/ai/README.md](services/ai/README.md) | `pytest`, `python3 -m compileall -q src tests` |
 | Chatwoot container | [infra/chatwoot/README.md](infra/chatwoot/README.md) | `docker compose config` |
+| CLI / local MCP | [tools/document-intake-agent/README.md](tools/document-intake-agent/README.md) | `npm ci`, `npm test` |
 
 ## Safety and Ownership Rules
 
@@ -230,6 +280,9 @@ has its own setup guide:
 | Document | Description |
 | --- | --- |
 | [SPEC.md](SPEC.md) | Approved Version 1 scope, requirements, acceptance criteria, and production-readiness gate |
+| [MCP and CLI guide](docs/integrations/mcp-and-cli.md) | Remote OAuth, local stdio, CLI commands, tool capabilities and source map |
+| [Remote MCP internals](apps/management/docs/REMOTE_MCP.md) | Laravel MCP/Passport, scopes, token lifecycle and deployment prerequisites |
+| [Agent setup](apps/management/docs/AI_SETUP.md) | Management onboarding and connection UI |
 | [docs/architecture/overview.md](docs/architecture/overview.md) | Detailed runtime architecture, lifecycle, security boundaries, and deployment topology |
 | [docs/integrations/line-rich-menu-flex.md](docs/integrations/line-rich-menu-flex.md) | Environment-neutral LINE Rich Menu and Flex API integration guide |
 | [apps/management/docs/IMPORT_FORMAT.md](apps/management/docs/IMPORT_FORMAT.md) | Current 23-column property import and backward-compatible 9-column format |

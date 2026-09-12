@@ -12,6 +12,7 @@ Application-specific guides remain in [Management docs](../apps/management/docs/
 | Branches and promotion | [Branch workflow](operations/branching.md) |
 | AI release management | [Release Steward](operations/release-steward.md) |
 | LINE integration | [Rich Menu and Flex guide](integrations/line-rich-menu-flex.md) |
+| MCP, OAuth and CLI | [MCP and CLI guide](integrations/mcp-and-cli.md) |
 | Recorded decisions | [Decisions](decisions/) |
 | Proposed work | [Proposals](proposals/) |
 | Delivery and verification evidence | [Reviews](reviews/) |
