@@ -103,4 +103,30 @@ class CatalogLifecycleTest extends TestCase
         $this->assertNotNull($item->fresh()->archived_at);
         $this->assertDatabaseHas('packages', ['id' => $item->id]);
     }
+
+    public function test_admin_can_restore_archived_package(): void
+    {
+        $item = ServicePackage::factory()->create();
+        $item->archive();
+        $this->assertNotNull($item->fresh()->archived_at);
+
+        $this->actingAs($this->admin())
+            ->post("/admin/packages/{$item->id}/restore")
+            ->assertRedirect('/admin/packages');
+
+        $this->assertNull($item->fresh()->archived_at);
+    }
+
+    public function test_viewer_cannot_restore_archived_package(): void
+    {
+        $item = ServicePackage::factory()->create();
+        $item->archive();
+
+        $viewer = User::factory()->create(['is_admin' => false, 'role' => 'viewer']);
+        $this->actingAs($viewer)
+            ->post("/admin/packages/{$item->id}/restore")
+            ->assertForbidden();
+
+        $this->assertNotNull($item->fresh()->archived_at);
+    }
 }

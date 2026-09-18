@@ -52,7 +52,7 @@ class ImportExportController extends Controller
 
     public function preview(Request $request, PackageImportPreview $previewer): RedirectResponse
     {
-        Gate::authorize('viewAny', ServicePackage::class);
+        Gate::authorize('create', ServicePackage::class);
 
         $validated = $request->validate([
             'file' => ['required', 'file', 'mimes:xlsx,xls,csv', 'max:5120'],
@@ -89,7 +89,7 @@ class ImportExportController extends Controller
 
     public function confirm(Request $request): RedirectResponse
     {
-        Gate::authorize('viewAny', ServicePackage::class);
+        Gate::authorize('create', ServicePackage::class);
 
         $validated = $request->validate(['token' => ['required', 'uuid']]);
         $batch = $request->session()->pull("package_imports.{$validated['token']}");

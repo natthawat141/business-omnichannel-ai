@@ -9,7 +9,7 @@ class AiServiceTokenSeeder extends Seeder
 {
     public function run(): void
     {
-        $plainText = env('AI_SERVICE_TOKEN');
+        $plainText = env('AI_SERVICE_TOKEN') ?? config('services.ai.token');
         if (blank($plainText)) {
             $this->command?->warn('AI_SERVICE_TOKEN is not set — the AI service cannot read Management.');
             return;

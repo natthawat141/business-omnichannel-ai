@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
         $this->seedAdmin();
         $this->call(AiServiceTokenSeeder::class);
 
-        if (filter_var(env('SEED_DEMO_DATA', false), FILTER_VALIDATE_BOOL)) {
+        if (filter_var(env('SEED_DEMO_DATA') ?? config('services.admin.seed_demo_data', false), FILTER_VALIDATE_BOOL)) {
             $this->call(RealEstateDemoSeeder::class);
         }
     }
@@ -30,8 +30,8 @@ class DatabaseSeeder extends Seeder
      */
     private function seedAdmin(): void
     {
-        $email = env('ADMIN_EMAIL', 'admin@example.com');
-        $password = env('ADMIN_PASSWORD');
+        $email = env('ADMIN_EMAIL') ?? config('services.admin.email', 'admin@example.com');
+        $password = env('ADMIN_PASSWORD') ?? config('services.admin.password');
 
         if (blank($password)) {
             $this->command?->warn('ADMIN_PASSWORD is not set — skipping admin seeding. Set it in .env then re-run.');
@@ -40,7 +40,7 @@ class DatabaseSeeder extends Seeder
         }
 
         $attributes = [
-            'name' => env('ADMIN_NAME', 'Administrator'),
+            'name' => env('ADMIN_NAME') ?? config('services.admin.name', 'Administrator'),
             'email' => $email,
             'password' => Hash::make($password),
             'is_admin' => true,

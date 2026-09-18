@@ -171,4 +171,21 @@ class ImportTest extends TestCase
         $this->actingAs($admin)->post('/admin/imports/faqs')->assertNotFound();
         $this->actingAs($admin)->post('/admin/imports/knowledge')->assertNotFound();
     }
+
+    public function test_viewer_cannot_preview_or_confirm_imports(): void
+    {
+        $viewer = User::factory()->create(['is_admin' => false, 'role' => 'viewer']);
+        $rows = [
+            ['code', 'name_th', 'description_th', 'price', 'sale_price', 'effective_from', 'effective_until', 'terms', 'keywords'],
+            ['PROMO-001', 'โปรโมชันใหม่', '', '100', '', '', '', '', ''],
+        ];
+
+        $this->actingAs($viewer)
+            ->post('/admin/imports/packages/preview', ['file' => $this->csvUpload($rows)])
+            ->assertForbidden();
+
+        $this->actingAs($viewer)
+            ->post('/admin/imports/packages/confirm', ['token' => (string) \Illuminate\Support\Str::uuid()])
+            ->assertForbidden();
+    }
 }
