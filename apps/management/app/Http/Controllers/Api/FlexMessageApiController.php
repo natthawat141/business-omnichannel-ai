@@ -25,9 +25,11 @@ class FlexMessageApiController extends Controller
 
         $bubble = $this->buildPropertyBubble($package);
 
+        $priceLabel = $package->price !== null ? ' - ฿'.number_format((float) $package->price) : '';
+
         return response()->json([
             'type' => 'flex',
-            'altText' => "🏡 {$package->name_th} - ฿".number_format($package->price),
+            'altText' => "🏡 {$package->name_th}{$priceLabel}",
             'contents' => $bubble,
         ]);
     }

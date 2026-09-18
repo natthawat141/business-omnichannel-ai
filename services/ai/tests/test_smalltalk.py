@@ -77,7 +77,7 @@ class _SmalltalkTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             body = json.loads(request.content)
@@ -110,7 +110,7 @@ def test_smalltalk_is_answered_from_business_profile_without_catalog_or_knowledg
     assert transport.public_messages == ["สวัสดีครับ ผมเป็นผู้ช่วย AI ของธุรกิจนี้ครับ"]
     assert not any(p.endswith(("/faqs", "/knowledge", "/catalog/search")) for p in transport.requested_paths)
     assert any(p.endswith("/business-profile") for p in transport.requested_paths)
-    assert transport.attributes["ai_mode"] == "ai"
+    assert "ai_mode" not in transport.attributes  # normal replies never write ownership
     assert "ai_handoff_reason" not in transport.attributes
 
     prompt_system_messages = [m["content"] for m in transport.openrouter_requests[0]["messages"] if m["role"] == "system"]

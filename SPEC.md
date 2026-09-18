@@ -86,6 +86,21 @@ Example customer questions that Version 1 must support:
 
 ## 3. Users and Roles
 
+### Reliability fixes approved 2026-09-12
+
+- **FR-REL-001:** Match the pinned Chatwoot API contract, preserve unrelated attributes, resume
+  incomplete handoffs, and never restore AI ownership from an ordinary answer. Recheck ownership
+  immediately before each customer-visible side effect. Document the upstream atomicity limit.
+- **FR-REL-002:** Repair the existing Redis queue with FIFO claims, processing recovery, bounded
+  retries, acknowledged completion and seven-day event deduplication. Persist outbound claims
+  before network sends; ambiguous delivery requires review instead of blind retries. Use the
+  existing Redis instance, not a new infrastructure dependency; support one leased worker.
+- **FR-REL-003:** Disable startup/demo seeding by default and preserve existing business data.
+  Pass only required runtime settings to AI containers and remove identifiers/bodies from LINE logs.
+- **FR-REL-004:** Parse grouped budget amounts correctly and match Latin smalltalk on word
+  boundaries. Add regression tests and CI Redis crash/replay coverage. This authorizes development
+  fixes, not production deployment.
+
 ### Customer
 
 - Sends questions through LINE or WhatsApp.

@@ -103,4 +103,13 @@ class PackageController extends Controller
 
         return redirect()->route('admin.packages.index')->with('success', 'เก็บรายการทรัพย์เข้าคลังแล้ว และกู้คืนได้');
     }
+
+    public function restore(ServicePackage $package): RedirectResponse
+    {
+        Gate::authorize('update', $package);
+
+        $package->restoreFromArchive();
+
+        return redirect()->route('admin.packages.index')->with('success', 'กู้คืนรายการทรัพย์เรียบร้อยแล้ว');
+    }
 }

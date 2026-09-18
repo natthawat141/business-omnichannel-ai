@@ -51,4 +51,19 @@ return [
         'direct_upload_expiry_minutes' => (int) env('R2_DIRECT_UPLOAD_EXPIRY_MINUTES', 10),
     ],
 
+    'ai' => [
+        'token' => env('AI_SERVICE_TOKEN'),
+    ],
+
+    'admin' => [
+        'email' => env('ADMIN_EMAIL', 'admin@example.com'),
+        'password' => env('ADMIN_PASSWORD'),
+        'name' => env('ADMIN_NAME', 'Administrator'),
+        'seed_demo_data' => env('SEED_DEMO_DATA', false),
+    ],
+
+    'firebase' => [
+        'project_id' => env('FIREBASE_PROJECT_ID', 'monica-88d72'),
+    ],
+
 ];

@@ -12,6 +12,9 @@ class RealEstateDemoSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            throw new \RuntimeException('Demo seeding is disabled in production.');
+        }
         $definitions = [
             ['key' => 'bedrooms', 'label_th' => 'ห้องนอน', 'type' => 'number', 'operators' => ['eq', 'gte', 'lte'], 'searchable' => true],
             ['key' => 'bathrooms', 'label_th' => 'ห้องน้ำ', 'type' => 'number', 'operators' => ['eq', 'gte', 'lte'], 'searchable' => true],
@@ -24,7 +27,7 @@ class RealEstateDemoSeeder extends Seeder
             ['slug' => 'house', 'name_th' => 'บ้าน', 'name_en' => 'House'],
             ['slug' => 'land', 'name_th' => 'ที่ดิน', 'name_en' => 'Land'],
             ['slug' => 'commercial', 'name_th' => 'อสังหาริมทรัพย์เพื่อพาณิชย์', 'name_en' => 'Commercial property'],
-        ])->mapWithKeys(fn (array $data) => [$data['slug'] => PackageCategory::updateOrCreate(
+        ])->mapWithKeys(fn (array $data) => [$data['slug'] => PackageCategory::firstOrCreate(
             ['slug' => $data['slug']], $data + ['attribute_definitions' => $definitions, 'sort_order' => 10, 'is_active' => true],
         )]);
 
@@ -36,7 +39,10 @@ class RealEstateDemoSeeder extends Seeder
 
     private function seedBusinessProfile(): void
     {
-        \App\Models\BusinessProfile::current()->update([
+        if (\App\Models\BusinessProfile::query()->exists()) {
+            return;
+        }
+        \App\Models\BusinessProfile::create([
             'business_name' => 'บิว Property (Bill Property)',
             'business_description' => 'ตัวแทนและที่ปรึกษาด้านอสังหาริมทรัพย์ครบวงจร บริการรับฝากขาย ฝากเช่า จัดหาบ้าน คอนโด ที่ดิน และอาคารพาณิชย์ในกรุงเทพฯ และปริมณฑล พร้อมดูแลสินเชื่อและนิติกรรมสัญญาครบวงจร',
             'services_offered' => 'รับฝากขาย-ฝากเช่า คอนโด/บ้าน/ที่ดิน, จัดหาทรัพย์ตามงบประมาณ, ให้คำปรึกษาสินเชื่อและยื่นกู้ธนาคารฟรี, บริการพาโอนกรรมสิทธิ์ ณ สำนักงานที่ดิน',
@@ -117,7 +123,7 @@ class RealEstateDemoSeeder extends Seeder
             $this->upsertPackage($item, $categories['commercial']->id, 'property', 'พาณิชย์,'.($item['district'] ?? ''));
         }
         foreach ($services as $item) {
-            ServicePackage::updateOrCreate(['code' => $item['code']], [
+            ServicePackage::firstOrCreate(['code' => $item['code']], [
                 'category_id' => null,
                 'item_type' => 'service',
                 'name_th' => $item['name_th'],
@@ -149,7 +155,7 @@ class RealEstateDemoSeeder extends Seeder
             'is_active' => true,
             'is_published' => true,
         ]);
-        ServicePackage::updateOrCreate(['code' => $item['code']], $defaults);
+        ServicePackage::firstOrCreate(['code' => $item['code']], $defaults);
     }
 
     private function seedFaqs(): void
@@ -190,7 +196,7 @@ class RealEstateDemoSeeder extends Seeder
         ];
 
         foreach ($faqs as $faq) {
-            Faq::updateOrCreate(
+            Faq::firstOrCreate(
                 ['question_th' => $faq['q']],
                 ['answer_th' => $faq['a'], 'category' => $faq['category'], 'tags' => $faq['tags'], 'is_active' => true],
             );
@@ -215,7 +221,7 @@ class RealEstateDemoSeeder extends Seeder
         ];
 
         foreach ($entries as $entry) {
-            KnowledgeEntry::updateOrCreate(
+            KnowledgeEntry::firstOrCreate(
                 ['title' => $entry['title']],
                 ['body' => $entry['body'], 'type' => $entry['type'], 'category' => $entry['category'], 'tags' => $entry['tags'], 'version' => 1, 'is_active' => true, 'reviewed_at' => now()],
             );

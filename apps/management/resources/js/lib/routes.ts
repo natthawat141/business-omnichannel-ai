@@ -7,6 +7,7 @@ const admin = (path: string) => `/admin${path}`;
 
 export const routes = {
     login: '/login',
+    loginFirebase: '/login/firebase',
     logout: '/logout',
     dashboard: admin('/dashboard'),
     guide: admin('/guide'),

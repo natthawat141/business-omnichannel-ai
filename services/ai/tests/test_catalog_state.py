@@ -6,10 +6,13 @@ import httpx
 from ai_service.main import (
     ZERO_RESULT_CLARIFICATION,
     apply_resets,
+    catalog_filters,
     detect_intent,
+    is_catalog,
     merge_catalog_filters,
     requested_result_index,
     search_query,
+    should_escalate_by_profile,
     ManagementClient,
     Settings,
     process,
@@ -141,6 +144,7 @@ class _EmptyKnowledgeTransport:
     def __init__(self) -> None:
         self.attributes: dict[str, object] = {}
         self.public_messages: list[str] = []
+        self.team_id = None
 
     def __call__(self, request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -152,12 +156,16 @@ class _EmptyKnowledgeTransport:
                 "inbox_id": 1,
                 "meta": {"assignee": {"bot_type": "webhook"}},
                 "custom_attributes": self.attributes,
+                "team_id": self.team_id,
             })
+        if path.endswith("/assignments") and request.method == "POST":
+            self.team_id = json.loads(request.content).get("team_id")
+            return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "GET":
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             body = json.loads(request.content)
@@ -205,7 +213,7 @@ def test_process_asks_one_clarification_before_handoff_on_empty_knowledge() -> N
 
     transport = asyncio.run(scenario())
 
-    assert transport.attributes["ai_mode"] == "ai"
+    assert "ai_mode" not in transport.attributes  # normal replies never write ownership
     assert "ai_handoff_reason" not in transport.attributes
     assert transport.attributes["ai_zero_result_streak"] == 1
     assert transport.public_messages == [ZERO_RESULT_CLARIFICATION]
@@ -261,7 +269,7 @@ class _ConversationFlowTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             return httpx.Response(200, json={})
@@ -347,7 +355,7 @@ class _CatalogRelaxationTransport:
             return httpx.Response(200, json={"payload": []})
         if path.endswith("/custom_attributes") and request.method == "POST":
             payload = json.loads(request.content)
-            self.attributes.update(payload["custom_attributes"])
+            self.attributes = dict(payload["custom_attributes"])
             return httpx.Response(200, json={})
         if path.endswith("/messages") and request.method == "POST":
             payload = json.loads(request.content)
@@ -467,3 +475,77 @@ def test_empty_relaxed_search_stays_deterministic_and_offers_handoff() -> None:
         "ยังไม่พบตัวเลือกอื่นที่พร้อมเสนอครับ "
         "หากต้องการ ผมส่งต่อให้ทีมเจ้าหน้าที่ช่วยค้นหาเพิ่มเติมได้ครับ"
     )
+
+
+def test_catalog_filters_price_range_and_multi_word_location() -> None:
+    # Test range: "งบ 3-5 ล้าน"
+    filters = catalog_filters("หาคอนโด งบ 3-5 ล้าน")
+    assert filters["category_slug"] == "condo"
+    assert filters["price"] == {"min": 3_000_000.0, "max": 5_000_000.0}
+
+    # Test range with "ถึง": "ราคา 3 ถึง 5 ล้าน"
+    filters = catalog_filters("บ้านเดี่ยวราคา 3 ถึง 5 ล้าน")
+    assert filters["category_slug"] == "house"
+    assert filters["price"] == {"min": 3_000_000.0, "max": 5_000_000.0}
+
+    # Test single max: "งบไม่เกิน 3 ล้าน"
+    filters = catalog_filters("คอนโด งบไม่เกิน 3 ล้าน")
+    assert filters["price"] == {"max": 3_000_000.0}
+
+    # Test explicit price: "ราคา 2.5 ล้าน"
+    filters = catalog_filters("คอนโดราคา 2.5 ล้าน")
+    assert filters["price"] == {"max": 2_500_000.0}
+
+    # Test multi-word locations with spaces
+    filters = catalog_filters("หาคอนโดติด bts ทองหล่อ")
+    assert filters["location"]["text"] == "bts ทองหล่อ"
+
+    filters = catalog_filters("คอนโดแถว สุขุมวิท 77")
+    assert filters["location"]["text"] == "สุขุมวิท 77"
+
+    filters = catalog_filters("บ้านใกล้ mrt พระราม 9")
+    assert filters["location"]["text"] == "mrt พระราม 9"
+
+
+def test_catalog_filters_extracts_property_code_and_detail_button() -> None:
+    # LINE flex button click text
+    filters = catalog_filters("ขอดูรายละเอียด The Base Sukhumvit 77 (รหัส CD-001) ครับ")
+    assert filters.get("query") == "CD-001"
+
+    # Direct code inquiry
+    filters = catalog_filters("สนใจรหัส LP-002 ครับ")
+    assert filters.get("query") == "LP-002"
+
+    filters = catalog_filters("code: HSE-99")
+    assert filters.get("query") == "HSE-99"
+
+
+def test_is_catalog_property_codes_and_flex_buttons() -> None:
+    assert is_catalog("ขอดูรายละเอียด The Base (รหัส CD-001) ครับ") is True
+    assert is_catalog("รหัส LP-002 มีรายละเอียดอะไรบ้าง") is True
+    assert is_catalog("ห้องแรกมีกี่ห้องนอน") is True
+    assert is_catalog("โครงการแรกราคาเท่าไหร่") is True
+    assert is_catalog("ที่แรกอยู่แถวไหน") is True
+    assert is_catalog("สวัสดีครับ") is False
+
+
+def test_ordinal_map_real_estate_variations() -> None:
+    assert requested_result_index("ขอดูห้องแรกครับ") == 0
+    assert requested_result_index("ห้องที่ 2 มีกี่ตารางเมตร") == 1
+    assert requested_result_index("ห้องที่สามราคาเท่าไหร่") == 2
+    assert requested_result_index("ห้องสุดท้าย") == -1
+    assert requested_result_index("โครงการแรก") == 0
+    assert requested_result_index("ที่แรก") == 0
+    assert requested_result_index("หลังแรก") == 0
+    assert requested_result_index("แปลงแรก") == 0
+
+
+def test_should_escalate_by_profile_topics() -> None:
+    profile = {
+        "always_escalate_topics": "เรื่องการโอนเงินจอง/มัดจำ, การร้องเรียน, สัญญาจะซื้อจะขายที่ต้องลงนามเฉพาะบุคคล",
+    }
+    assert should_escalate_by_profile("สอบถามเรื่องการโอนเงินจอง/มัดจำ หน่อยครับ", profile) is True
+    assert should_escalate_by_profile("อยากทราบเกี่ยวกับการร้องเรียน", profile) is True
+    assert should_escalate_by_profile("คอนโด 2 ห้องนอนมีไหมครับ", profile) is False
+    assert should_escalate_by_profile("สวัสดีครับ", None) is False
+

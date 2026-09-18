@@ -167,4 +167,19 @@ class FlexMessageApiTest extends TestCase
                 'สอบถามรายละเอียดเพิ่มเติม',
             );
     }
+
+    public function test_property_flex_handles_null_price_gracefully(): void
+    {
+        $package = ServicePackage::factory()->create([
+            'availability' => 'available',
+            'price' => null,
+            'name_th' => 'ที่ดินเปล่าแปลงพิเศษ',
+        ]);
+
+        $res = $this->getJson("/api/v1/flex/catalog/{$package->id}", $this->auth())
+            ->assertOk();
+
+        $res->assertJsonPath('altText', '🏡 ที่ดินเปล่าแปลงพิเศษ');
+        $res->assertJsonPath('contents.body.contents.0.text', 'ติดต่อสอบถาม');
+    }
 }

@@ -40,6 +40,9 @@ Route::middleware('guest')->group(function () {
     Route::post('/login', [AuthenticatedSessionController::class, 'store'])
         ->middleware('throttle:10,1')
         ->name('login.store');
+    Route::post('/login/firebase', [\App\Http\Controllers\Auth\FirebaseLoginController::class, 'store'])
+        ->middleware('throttle:10,1')
+        ->name('login.firebase');
 });
 
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
@@ -73,6 +76,7 @@ Route::middleware(['auth', \App\Http\Middleware\StaffAccess::class])->prefix('ad
         ->parameters(['package-categories' => 'category'])
         ->except('show');
     Route::resource('packages', PackageController::class)->except('show');
+    Route::post('/packages/{package}/restore', [PackageController::class, 'restore'])->name('packages.restore');
     Route::post('/property-images/direct-upload', PropertyImageUploadController::class)
         ->middleware('throttle:10,1')
         ->name('property-images.direct-upload');

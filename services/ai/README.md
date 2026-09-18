@@ -1,7 +1,8 @@
 # Python AI Service
 
 The service exposes a FastAPI webhook endpoint and a separate Redis-backed worker. The webhook
-acknowledges authenticated Chatwoot events only after they are durably queued; the worker then
+acknowledges authenticated Chatwoot events only after Redis accepts them; persistence depends on
+Redis AOF/backup configuration. The worker then
 performs Chatwoot and Management API calls with bounded retries.
 
 โครง FastAPI สำหรับรับ event จาก Chatwoot และประสานงานกับ Management API
@@ -28,6 +29,10 @@ AI ไม่เข้าฐานข้อมูลโดยตรงและ�
 Run the API and worker together through the root Docker Compose stack. For local development,
 set `REDIS_URL` (or `AI_QUEUE_REDIS_URL`) to a private Redis instance before starting the worker.
 
-The service is designed to run as a single API/worker process pair. The in-process conversation
-lock does not coordinate across multiple Uvicorn/Gunicorn workers; do not scale the AI API to
-multiple workers until distributed idempotency is introduced.
+Run one worker. A renewable Redis lease fences queue mutations and delivery claims. A crashed
+worker leaves its event in a processing list; the successor recovers it before new FIFO events.
+Completion IDs and outbound delivery claims last seven days. Unknown POST delivery is dead-lettered
+for human reconciliation instead of blindly resent. This is not an exactly-once HTTP guarantee.
+
+See [Reliability and rollout](../../docs/operations/reliability.md) for retry/retention details,
+Chatwoot's non-atomic attribute limit, startup seeding changes, and required live checks.

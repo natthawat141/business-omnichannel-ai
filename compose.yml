@@ -119,7 +119,7 @@ services:
       SESSION_DRIVER: database
       QUEUE_CONNECTION: database
       RUN_MIGRATIONS: "true"
-      SEED_ON_START: "true"
+      SEED_ON_START: "${SEED_ON_START:-false}"
     depends_on:
       management-mysql:
         condition: service_healthy
@@ -160,17 +160,29 @@ services:
     build:
       context: ./services/ai
     env_file:
-      - .env
       - ./runtime/openrouter.env
       - ./runtime/chatwoot_bot.env
-    environment:
+    environment: &ai-environment
       MANAGEMENT_BASE_URL: http://management-nginx
       CHATWOOT_BASE_URL: http://chatwoot-rails:3000
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-deepseek/deepseek-v4-flash-0731}
+      AI_SERVICE_TOKEN: ${AI_SERVICE_TOKEN}
+      CHATWOOT_WEBHOOK_TOKEN: ${CHATWOOT_WEBHOOK_TOKEN}
+      AI_QUEUE_REDIS_URL: ${AI_QUEUE_REDIS_URL:-${REDIS_URL}}
+      LINE_CHANNEL_ACCESS_TOKEN: ${LINE_CHANNEL_ACCESS_TOKEN:-}
+      PROCESSING_TIMEOUT_SECONDS: ${PROCESSING_TIMEOUT_SECONDS:-25}
+      MANAGEMENT_TIMEOUT_SECONDS: ${MANAGEMENT_TIMEOUT_SECONDS:-5}
+      CHATWOOT_TIMEOUT_SECONDS: ${CHATWOOT_TIMEOUT_SECONDS:-8}
+      OPENROUTER_TIMEOUT_SECONDS: ${OPENROUTER_TIMEOUT_SECONDS:-15}
+      AI_CONTEXT_TTL_SECONDS: ${AI_CONTEXT_TTL_SECONDS:-86400}
+      BUSINESS_PROFILE_CACHE_TTL_SECONDS: ${BUSINESS_PROFILE_CACHE_TTL_SECONDS:-300}
     depends_on:
       management-nginx:
         condition: service_started
       chatwoot-rails:
         condition: service_started
+      chatwoot-redis:
+        condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
       interval: 20s
@@ -182,17 +194,16 @@ services:
     build:
       context: ./services/ai
     env_file:
-      - .env
       - ./runtime/openrouter.env
       - ./runtime/chatwoot_bot.env
-    environment:
-      MANAGEMENT_BASE_URL: http://management-nginx
-      CHATWOOT_BASE_URL: http://chatwoot-rails:3000
+    environment: *ai-environment
     depends_on:
       management-nginx:
         condition: service_started
       chatwoot-rails:
         condition: service_started
+      chatwoot-redis:
+        condition: service_healthy
     command: ["python", "-m", "ai_service.worker"]
     restart: unless-stopped
 
