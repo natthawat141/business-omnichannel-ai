@@ -166,4 +166,56 @@ class UserManagementTest extends TestCase
         $issued['token']->forceFill(['user_id' => $owner->id])->save();
         $this->assertNull(ApiToken::findValid($issued['plainText']));
     }
+
+    public function test_admin_can_filter_users_by_auth_provider(): void
+    {
+        $admin = User::factory()->create(['is_admin' => true, 'auth_provider' => 'password']);
+        $passUser = User::factory()->create(['name' => 'Pass Person', 'auth_provider' => 'password']);
+        $googleUser = User::factory()->create(['name' => 'Google Person', 'auth_provider' => 'google']);
+        $bothUser = User::factory()->create(['name' => 'Both Person', 'auth_provider' => 'both']);
+
+        $this->actingAs($admin);
+
+        $resGoogle = $this->get('/admin/users?provider=google');
+        $resGoogle->assertOk();
+        $resGoogle->assertSee('Google Person');
+        $resGoogle->assertDontSee('Pass Person');
+        $resGoogle->assertDontSee('Both Person');
+
+        $resBoth = $this->get('/admin/users?provider=both');
+        $resBoth->assertOk();
+        $resBoth->assertSee('Both Person');
+        $resBoth->assertDontSee('Google Person');
+
+        $resPass = $this->get('/admin/users?provider=password');
+        $resPass->assertOk();
+        $resPass->assertSee('Pass Person');
+        $resPass->assertDontSee('Google Person');
+    }
+
+    public function test_user_with_google_setting_password_upgrades_to_both(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'google-to-pass@example.com',
+            'auth_provider' => 'google',
+            'is_active' => true,
+            'approval_status' => 'approved',
+        ]);
+
+        $token = Password::createToken($user);
+
+        $response = $this->post('/reset-password', [
+            'token' => $token,
+            'email' => $user->email,
+            'password' => 'NewPassword1234!',
+            'password_confirmation' => 'NewPassword1234!',
+        ]);
+
+        $response->assertRedirect('/login');
+        $this->assertSame('both', $user->fresh()->auth_provider);
+        $this->assertDatabaseHas('user_management_events', [
+            'target_id' => $user->id,
+            'event' => 'password_set',
+        ]);
+    }
 }

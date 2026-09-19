@@ -20,6 +20,7 @@ class UserController extends Controller
         $filters = $request->validate([
             'q' => ['nullable', 'string', 'max:100'],
             'status' => ['nullable', 'string', Rule::in(['all', 'pending', 'active', 'inactive'])],
+            'provider' => ['nullable', 'string', Rule::in(['all', 'password', 'google', 'both'])],
         ]);
 
         $query = User::query();
@@ -36,6 +37,11 @@ class UserController extends Controller
             $query->where('approval_status', 'approved')->where('is_active', true);
         } elseif ($status === 'inactive') {
             $query->where(fn ($q) => $q->where('is_active', false)->orWhere('approval_status', 'rejected'));
+        }
+
+        $provider = $filters['provider'] ?? 'all';
+        if (in_array($provider, ['password', 'google', 'both'], true)) {
+            $query->where('auth_provider', $provider);
         }
 
         $users = $query->orderBy('id', 'desc')->paginate(20)->withQueryString()

@@ -65,4 +65,23 @@ class User extends Authenticatable implements OAuthenticatable
     {
         return $this->is_admin ? 'admin' : ($this->role ?? 'none');
     }
+
+    public function hasGoogleAuth(): bool
+    {
+        return in_array($this->auth_provider, ['google', 'both'], true);
+    }
+
+    public function hasPasswordAuth(): bool
+    {
+        return in_array($this->auth_provider, ['password', 'both'], true);
+    }
+
+    public function authProviderLabel(): string
+    {
+        return match ($this->auth_provider) {
+            'google' => 'Google เท่านั้น',
+            'both' => 'Google + รหัสผ่าน',
+            default => 'รหัสผ่านเท่านั้น',
+        };
+    }
 }

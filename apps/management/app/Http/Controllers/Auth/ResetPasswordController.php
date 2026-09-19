@@ -36,6 +36,9 @@ class ResetPasswordController extends Controller
                 $user->password = $password;
                 $user->remember_token = Str::random(60);
                 $user->session_version++;
+                if ($user->auth_provider === 'google') {
+                    $user->auth_provider = 'both';
+                }
                 $user->save();
                 ApiToken::where('user_id', $user->id)->whereNull('revoked_at')->update(['revoked_at' => now()]);
                 DB::table('user_management_events')->insert(['actor_id' => null, 'target_id' => $user->id,

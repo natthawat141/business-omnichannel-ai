@@ -243,4 +243,88 @@ class FirebaseLoginTest extends TestCase
         $response->assertSessionHasErrors(['email']);
         $this->assertFalse(Auth::check());
     }
+
+    public function test_existing_password_user_logging_in_with_google_upgrades_to_both_and_records_audit_event(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'existing-pass@example.com',
+            'auth_provider' => 'password',
+            'approval_status' => 'approved',
+            'is_active' => true,
+        ]);
+
+        $this->mock(FirebaseTokenVerifier::class, function (MockInterface $mock) use ($user) {
+            $mock->shouldReceive('verify')
+                ->once()
+                ->with('token-pass-to-both')
+                ->andReturn([
+                    'uid' => 'firebase-uid-link-both',
+                    'email' => $user->email,
+                    'email_verified' => true,
+                    'name' => 'Existing Password User',
+                ]);
+        });
+
+        $response = $this->post('/login/firebase', [
+            'id_token' => 'token-pass-to-both',
+        ]);
+
+        $response->assertRedirect('/admin/dashboard');
+        $this->assertSame('both', $user->fresh()->auth_provider);
+        $this->assertDatabaseHas('user_management_events', [
+            'target_id' => $user->id,
+            'event' => 'google_linked',
+        ]);
+    }
+
+    public function test_user_with_both_can_login_with_google_and_remains_both(): void
+    {
+        $user = User::factory()->create([
+            'email' => 'both@example.com',
+            'auth_provider' => 'both',
+            'approval_status' => 'approved',
+            'is_active' => true,
+        ]);
+
+        $this->mock(FirebaseTokenVerifier::class, function (MockInterface $mock) use ($user) {
+            $mock->shouldReceive('verify')
+                ->once()
+                ->with('token-both')
+                ->andReturn([
+                    'uid' => 'firebase-uid-both',
+                    'email' => $user->email,
+                    'email_verified' => true,
+                    'name' => 'Both User',
+                ]);
+        });
+
+        $response = $this->post('/login/firebase', [
+            'id_token' => 'token-both',
+        ]);
+
+        $response->assertRedirect('/admin/dashboard');
+        $this->assertSame('both', $user->fresh()->auth_provider);
+    }
+
+    public function test_google_only_user_attempting_password_login_receives_informative_error(): void
+    {
+        User::factory()->create([
+            'email' => 'googleonly@example.com',
+            'auth_provider' => 'google',
+            'is_active' => true,
+            'approval_status' => 'approved',
+        ]);
+
+        $response = $this->from('/login')->post('/login', [
+            'email' => 'googleonly@example.com',
+            'password' => 'wrong-password-attempt',
+        ]);
+
+        $response->assertRedirect('/login');
+        $response->assertSessionHasErrors(['email']);
+        $this->assertStringContainsString(
+            'บัญชีนี้ลงทะเบียนด้วย Google เท่านั้น',
+            session('errors')->first('email')
+        );
+    }
 }
