@@ -62,9 +62,15 @@ class FirebaseLoginController extends Controller
                 'created_at' => now(),
             ]);
         } else {
-            // Existing user logged in with Google; ensure provider recorded
-            if ($user->auth_provider !== 'google') {
-                $user->update(['auth_provider' => 'google']);
+            // Existing user logged in with Google; if they had password, upgrade to 'both'
+            if ($user->auth_provider === 'password') {
+                $user->update(['auth_provider' => 'both']);
+                DB::table('user_management_events')->insert([
+                    'actor_id' => null,
+                    'target_id' => $user->id,
+                    'event' => 'google_linked',
+                    'created_at' => now(),
+                ]);
             }
         }
 

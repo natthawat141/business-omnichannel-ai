@@ -1,10 +1,21 @@
 import { Head, Link, useForm } from '@inertiajs/react';
+import { Key } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import AdminLayout from '@/components/AdminLayout';
 import { Button, Field, TextInput, Toggle } from '@/components/ui';
 import { roles, type Member } from './Index';
 
-const eventLabels: Record<string, string> = { created: 'เพิ่มบัญชี', access_changed: 'เปลี่ยนสิทธิ์หรือการเข้าถึง', profile_updated: 'แก้ไขชื่อผู้ใช้', password_link_created: 'สร้างลิงก์ตั้งรหัสผ่าน', password_set: 'ตั้งรหัสผ่านแล้ว' };
+const eventLabels: Record<string, string> = {
+    created: 'เพิ่มบัญชี',
+    access_changed: 'เปลี่ยนสิทธิ์หรือการเข้าถึง',
+    profile_updated: 'แก้ไขชื่อผู้ใช้',
+    password_link_created: 'สร้างลิงก์ตั้งรหัสผ่าน',
+    password_set: 'ตั้งรหัสผ่านแล้ว',
+    google_registered_pending: 'ลงทะเบียนผ่าน Google (รอดำเนินการ)',
+    google_linked: 'เชื่อมต่อบัญชี Google สำเร็จ',
+    approved: 'อนุมัติการเข้าใช้งาน',
+    rejected: 'ปฏิเสธคำขอเข้าใช้งาน',
+};
 
 export default function UserForm({ member, events }: { member: Member | null; events: { id: number; actor_id: number | null; event: string; created_at: string }[] }) {
     const form = useForm({ name: member?.name ?? '', email: member?.email ?? '', role: member?.role === 'none' ? 'viewer' : member?.role ?? 'viewer', is_active: member?.is_active ?? true });
@@ -38,6 +49,38 @@ export default function UserForm({ member, events }: { member: Member | null; ev
         <Head title={member ? 'จัดการบัญชีผู้ใช้' : 'เพิ่มผู้ใช้'} />
         <Link href="/admin/users" className="mb-6 inline-block text-sm underline underline-offset-4">กลับไปรายชื่อผู้ใช้</Link>
         <div className="max-w-2xl space-y-8">
+            {member && (
+                <section className="rounded-xl border border-zinc-200 bg-zinc-50/70 p-4 dark:border-zinc-800 dark:bg-zinc-900/50 space-y-2">
+                    <h2 className="text-xs font-medium uppercase tracking-wider text-slate-500 dark:text-zinc-400">
+                        ช่องทางการเข้าสู่ระบบ (Authentication)
+                    </h2>
+                    <div className="flex items-center gap-2">
+                        {member.auth_provider === 'both' ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-md border border-purple-200 bg-purple-50 px-2.5 py-1 text-xs font-medium text-purple-700 dark:border-purple-800 dark:bg-purple-950/40 dark:text-purple-300">
+                                <Key className="h-3.5 w-3.5" />
+                                ทั้งสองช่องทาง (Google + รหัสผ่าน)
+                            </span>
+                        ) : member.auth_provider === 'google' ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-200 bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 dark:border-blue-800 dark:bg-blue-950/40 dark:text-blue-300">
+                                Google เท่านั้น
+                            </span>
+                        ) : (
+                            <span className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                <Key className="h-3.5 w-3.5" />
+                                รหัสผ่านเท่านั้น
+                            </span>
+                        )}
+                    </div>
+                    <p className="text-xs text-slate-600 dark:text-zinc-400">
+                        {member.auth_provider === 'both'
+                            ? 'ผู้ใช้นี้สามารถเข้าสู่ระบบได้ทั้งการกดปุ่ม Google และการกรอกอีเมล/รหัสผ่าน'
+                            : member.auth_provider === 'google'
+                              ? 'ผู้ใช้นี้เข้าสู่ระบบผ่าน Google เท่านั้น หากต้องการให้ล็อกอินด้วยรหัสผ่านได้ด้วย สามารถสร้างลิงก์ตั้งรหัสผ่านด้านล่าง'
+                              : 'ผู้ใช้นี้เข้าสู่ระบบผ่านรหัสผ่าน หากล็อกอินด้วย Google ด้วยอีเมลนี้ ระบบจะเชื่อมต่อทั้งสองช่องทางให้อัตโนมัติ'}
+                    </p>
+                </section>
+            )}
+
             <form onSubmit={submit} className="space-y-5">
                 <Field label="ชื่อผู้ใช้" required error={form.errors.name}><TextInput aria-label="ชื่อผู้ใช้" required maxLength={255} value={form.data.name} onChange={e => form.setData('name', e.target.value)} /></Field>
                 <Field label="อีเมลสำหรับเข้าสู่ระบบ" required error={form.errors.email}><TextInput aria-label="อีเมลสำหรับเข้าสู่ระบบ" required type="email" maxLength={255} autoComplete="off" value={form.data.email} onChange={e => form.setData('email', e.target.value)} /></Field>

@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Models\User;
 use Illuminate\Auth\Events\Lockout;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Support\Facades\Auth;
@@ -37,6 +38,13 @@ class LoginRequest extends FormRequest
 
         if (! Auth::attempt($this->only('email', 'password') + ['is_active' => true], $this->boolean('remember'))) {
             RateLimiter::hit($this->throttleKey());
+
+            $user = User::where('email', Str::lower(trim((string) $this->string('email'))))->first();
+            if ($user && $user->auth_provider === 'google') {
+                throw ValidationException::withMessages([
+                    'email' => __('บัญชีนี้ลงทะเบียนด้วย Google เท่านั้น กรุณาเข้าสู่ระบบด้วยปุ่ม "เข้าสู่ระบบด้วย Google" หรือติดต่อผู้ดูแลระบบเพื่อขอลิงก์ตั้งรหัสผ่าน'),
+                ]);
+            }
 
             throw ValidationException::withMessages([
                 'email' => __('อีเมลหรือรหัสผ่านไม่ถูกต้อง'),
