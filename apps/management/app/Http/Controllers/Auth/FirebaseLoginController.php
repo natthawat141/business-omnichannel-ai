@@ -9,6 +9,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
@@ -34,15 +36,56 @@ class FirebaseLoginController extends Controller
             ]);
         }
 
+        $email = Str::lower(trim((string) $email));
         $user = User::query()->where('email', $email)->first();
 
+        // Auto-register new Google user with pending approval
         if (! $user) {
-            throw ValidationException::withMessages([
-                'email' => 'อีเมล '.$email.' ยังไม่ได้รับสิทธิ์เข้าใช้งานระบบ กรุณาติดต่อผู้ดูแลระบบ',
+            $name = ! empty($claims['name']) ? trim((string) $claims['name']) : explode('@', $email)[0];
+
+            $user = User::create([
+                'name' => $name,
+                'email' => $email,
+                'password' => Str::random(64),
+                'role' => 'viewer',
+                'is_admin' => false,
+                'is_active' => false,
+                'approval_status' => 'pending',
+                'auth_provider' => 'google',
+                'email_verified_at' => now(),
             ]);
+
+            DB::table('user_management_events')->insert([
+                'actor_id' => null,
+                'target_id' => $user->id,
+                'event' => 'google_registered_pending',
+                'created_at' => now(),
+            ]);
+        } else {
+            // Existing user logged in with Google; ensure provider recorded
+            if ($user->auth_provider !== 'google') {
+                $user->update(['auth_provider' => 'google']);
+            }
         }
 
-        if (! $user->is_active) {
+        // Account is pending administrator approval
+        if ($user->approval_status === 'pending') {
+            Auth::login($user, $request->boolean('remember'));
+            $request->session()->regenerate();
+            $request->session()->put('staff_version', $user->session_version);
+
+            if ($request->wantsJson() && ! $request->header('X-Inertia')) {
+                return response()->json([
+                    'success' => true,
+                    'redirect_url' => route('pending-approval'),
+                ]);
+            }
+
+            return redirect()->route('pending-approval');
+        }
+
+        // Account is rejected or deactivated
+        if ($user->approval_status === 'rejected' || ! $user->is_active) {
             throw ValidationException::withMessages([
                 'email' => 'บัญชีผู้ใช้นี้ถูกระงับการใช้งาน กรุณาติดต่อผู้ดูแลระบบ',
             ]);

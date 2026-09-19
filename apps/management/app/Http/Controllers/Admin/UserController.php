@@ -17,12 +17,37 @@ class UserController extends Controller
 {
     public function index(Request $request)
     {
-        $filters = $request->validate(['q' => ['nullable', 'string', 'max:100']]);
-        $users = User::query()->when($filters['q'] ?? null, fn ($query, $q) => $query
-            ->where(fn ($query) => $query->where('name', 'like', '%'.$q.'%')->orWhere('email', 'like', '%'.$q.'%')))
-            ->orderBy('id')->paginate(20)->withQueryString()
+        $filters = $request->validate([
+            'q' => ['nullable', 'string', 'max:100'],
+            'status' => ['nullable', 'string', Rule::in(['all', 'pending', 'active', 'inactive'])],
+        ]);
+
+        $query = User::query();
+
+        if (! empty($filters['q'])) {
+            $q = $filters['q'];
+            $query->where(fn ($query) => $query->where('name', 'like', '%'.$q.'%')->orWhere('email', 'like', '%'.$q.'%'));
+        }
+
+        $status = $filters['status'] ?? 'all';
+        if ($status === 'pending') {
+            $query->where('approval_status', 'pending');
+        } elseif ($status === 'active') {
+            $query->where('approval_status', 'approved')->where('is_active', true);
+        } elseif ($status === 'inactive') {
+            $query->where(fn ($q) => $q->where('is_active', false)->orWhere('approval_status', 'rejected'));
+        }
+
+        $users = $query->orderBy('id', 'desc')->paginate(20)->withQueryString()
             ->through(fn (User $user) => $this->summary($user));
-        return Inertia::render('Users/Index', ['users' => $users, 'filters' => $filters]);
+
+        $pendingCount = User::query()->where('approval_status', 'pending')->count();
+
+        return Inertia::render('Users/Index', [
+            'users' => $users,
+            'filters' => $filters,
+            'pendingCount' => $pendingCount,
+        ]);
     }
 
     public function create()
@@ -42,7 +67,11 @@ class UserController extends Controller
     {
         $data = $this->validated($request);
         $user = DB::transaction(function () use ($request, $data) {
-            $user = User::create($data + ['password' => Str::random(64)]);
+            $user = User::create($data + [
+                'password' => Str::random(64),
+                'auth_provider' => 'password',
+                'approval_status' => $data['is_active'] ? 'approved' : 'rejected',
+            ]);
             $this->audit($request, $user, 'created');
             return $user;
         });
@@ -70,10 +99,63 @@ class UserController extends Controller
                 ApiToken::where('user_id', $target->id)->whereNull('revoked_at')->update(['revoked_at' => now()]);
                 Password::deleteToken($target);
             }
+            if ($data['is_active'] && $target->approval_status !== 'approved') {
+                $target->approval_status = 'approved';
+            }
             $target->fill($data)->save();
             $this->audit($request, $target, $securityChange ? 'access_changed' : 'profile_updated');
         }, 3);
         return redirect()->route('admin.users.edit', $user)->with('success', 'บันทึกผู้ใช้แล้ว');
+    }
+
+    public function approve(Request $request, User $user)
+    {
+        $data = $request->validate([
+            'role' => ['required', Rule::in(['admin', 'editor', 'viewer'])],
+        ]);
+
+        DB::transaction(function () use ($request, $user, $data) {
+            $actor = User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_admin && $actor->is_active && $actor->session_version === $request->user()->session_version, 403);
+
+            $target = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            $target->approval_status = 'approved';
+            $target->is_active = true;
+            $target->role = $data['role'];
+            $target->is_admin = $data['role'] === 'admin';
+            $target->session_version++;
+            $target->save();
+
+            $this->audit($request, $target, 'approved');
+        });
+
+        return redirect()->back()->with('success', 'อนุมัติสิทธิ์ผู้ใช้งานเรียบร้อยแล้ว');
+    }
+
+    public function reject(Request $request, User $user)
+    {
+        DB::transaction(function () use ($request, $user) {
+            $actor = User::whereKey($request->user()->id)->lockForUpdate()->firstOrFail();
+            abort_unless($actor->is_admin && $actor->is_active && $actor->session_version === $request->user()->session_version, 403);
+
+            $target = User::whereKey($user->id)->lockForUpdate()->firstOrFail();
+            if ($target->is_admin && $target->is_active) {
+                $admins = User::where('is_admin', true)->where('is_active', true)->lockForUpdate()->get();
+                if ($admins->count() <= 1) {
+                    throw ValidationException::withMessages(['role' => 'ต้องมีผู้ดูแลระบบที่ใช้งานได้อย่างน้อย 1 คน']);
+                }
+            }
+
+            $target->approval_status = 'rejected';
+            $target->is_active = false;
+            $target->session_version++;
+            $target->remember_token = Str::random(60);
+            $target->save();
+
+            $this->audit($request, $target, 'rejected');
+        });
+
+        return redirect()->back()->with('success', 'ปฏิเสธคำขอเข้าใช้งานเรียบร้อยแล้ว');
     }
 
     public function passwordLink(Request $request, User $user)
@@ -102,8 +184,16 @@ class UserController extends Controller
 
     private function summary(User $user): array
     {
-        return ['id' => $user->id, 'name' => $user->name, 'email' => $user->email,
-            'role' => $user->effectiveRole(), 'is_active' => $user->is_active];
+        return [
+            'id' => $user->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'role' => $user->effectiveRole(),
+            'is_active' => (bool) $user->is_active,
+            'auth_provider' => (string) ($user->auth_provider ?? 'password'),
+            'approval_status' => (string) ($user->approval_status ?? 'approved'),
+            'created_at' => $user->created_at?->toIso8601String(),
+        ];
     }
 
     private function audit(Request $request, User $user, string $event): void

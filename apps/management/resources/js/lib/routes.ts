@@ -9,8 +9,20 @@ export const routes = {
     login: '/login',
     loginFirebase: '/login/firebase',
     logout: '/logout',
+    pendingApproval: '/pending-approval',
+    pendingApprovalCheck: '/pending-approval/check',
     dashboard: admin('/dashboard'),
     guide: admin('/guide'),
+    users: {
+        index: admin('/users'),
+        create: admin('/users/create'),
+        store: admin('/users'),
+        edit: (id: number) => admin(`/users/${id}/edit`),
+        update: (id: number) => admin(`/users/${id}`),
+        approve: (id: number) => admin(`/users/${id}/approve`),
+        reject: (id: number) => admin(`/users/${id}/reject`),
+        passwordLink: (id: number) => admin(`/users/${id}/password-link`),
+    },
 
     categories: {
         index: admin('/package-categories'),

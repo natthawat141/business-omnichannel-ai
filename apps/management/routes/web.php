@@ -32,7 +32,11 @@ Route::get('/docs/agent-setup', function () {
 })->name('docs.agent-setup');
 
 // This is an internal admin tool only — root goes to the dashboard (or login).
-Route::get('/', fn () => redirect()->route(auth()->check() ? 'admin.dashboard' : 'login'))->name('home');
+Route::get('/', fn () => redirect()->route(
+    auth()->check()
+        ? (auth()->user()->isPendingApproval() ? 'pending-approval' : 'admin.dashboard')
+        : 'login'
+))->name('home');
 
 // Guest authentication.
 Route::middleware('guest')->group(function () {
@@ -45,6 +49,11 @@ Route::middleware('guest')->group(function () {
         ->name('login.firebase');
 });
 
+Route::middleware('auth')->group(function () {
+    Route::get('/pending-approval', [\App\Http\Controllers\Auth\PendingApprovalController::class, 'show'])->name('pending-approval');
+    Route::get('/pending-approval/check', [\App\Http\Controllers\Auth\PendingApprovalController::class, 'check'])->name('pending-approval.check');
+});
+
 Route::post('/logout', [AuthenticatedSessionController::class, 'destroy'])
     ->middleware('auth')
     ->name('logout');
@@ -55,6 +64,8 @@ Route::post('/reset-password', [\App\Http\Controllers\Auth\ResetPasswordControll
 // Protected staff area; sensitive routes remain administrator-only.
 Route::middleware(['auth', \App\Http\Middleware\StaffAccess::class])->prefix('admin')->name('admin.')->group(function () {
     Route::resource('users', \App\Http\Controllers\Admin\UserController::class)->except(['show', 'destroy']);
+    Route::post('/users/{user}/approve', [\App\Http\Controllers\Admin\UserController::class, 'approve'])->name('users.approve');
+    Route::post('/users/{user}/reject', [\App\Http\Controllers\Admin\UserController::class, 'reject'])->name('users.reject');
     Route::post('/users/{user}/password-link', [\App\Http\Controllers\Admin\UserController::class, 'passwordLink'])->middleware('throttle:5,1');
     Route::get('/dashboard', DashboardController::class)->name('dashboard');
     Route::get('/guide', GuideController::class)->name('guide');
