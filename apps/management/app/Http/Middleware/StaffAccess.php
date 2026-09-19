@@ -11,6 +11,14 @@ class StaffAccess
     public function handle(Request $request, Closure $next)
     {
         $user = $request->user();
+        if (! $user) {
+            return redirect('/login');
+        }
+
+        if ($user->isPendingApproval()) {
+            return redirect()->route('pending-approval');
+        }
+
         if (! $user->is_active || (int) $request->session()->get('staff_version', 0) !== $user->session_version) {
             Auth::logout();
             $request->session()->invalidate();

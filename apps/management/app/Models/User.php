@@ -12,11 +12,16 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\HasApiTokens;
 use Laravel\Passport\Contracts\OAuthenticatable;
 
-#[Fillable(['name', 'email', 'password', 'is_admin', 'role', 'is_active'])]
+#[Fillable(['name', 'email', 'auth_provider', 'password', 'is_admin', 'role', 'approval_status', 'is_active'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements OAuthenticatable
 {
-    protected $attributes = ['is_active' => true, 'session_version' => 0];
+    protected $attributes = [
+        'auth_provider' => 'password',
+        'approval_status' => 'approved',
+        'is_active' => true,
+        'session_version' => 0,
+    ];
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
 
@@ -36,14 +41,24 @@ class User extends Authenticatable implements OAuthenticatable
         ];
     }
 
+    public function isPendingApproval(): bool
+    {
+        return $this->approval_status === 'pending';
+    }
+
+    public function isApproved(): bool
+    {
+        return $this->approval_status === 'approved' && $this->is_active;
+    }
+
     public function canViewBusiness(): bool
     {
-        return $this->is_active && ($this->is_admin || in_array($this->role, ['editor', 'viewer'], true));
+        return $this->isApproved() && ($this->is_admin || in_array($this->role, ['editor', 'viewer'], true));
     }
 
     public function canEditBusiness(): bool
     {
-        return $this->is_active && ($this->is_admin || $this->role === 'editor');
+        return $this->isApproved() && ($this->is_admin || $this->role === 'editor');
     }
 
     public function effectiveRole(): string
