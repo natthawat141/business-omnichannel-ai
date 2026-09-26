@@ -58,6 +58,10 @@ From `infra/chatwoot/`:
 - Prepare database: `docker compose run --rm rails bundle exec rails db:chatwoot_prepare`
 - Start: `docker compose up -d`
 
+From the repository root:
+
+- VM backup and monitor checks: `bash infra/ops/test-ops.sh`
+
 If a repository instruction forbids executing a command, do not bypass it. Report the required command as not run and explain the governing rule.
 
 ## Architecture Rules

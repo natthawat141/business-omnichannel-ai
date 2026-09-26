@@ -6,10 +6,11 @@
 - Status: Product direction approved. The Version 1 stack and lean real-estate slice in FR-RE-001–005
   are deployed to the configured GCP VM. Management/AI health, the additive property-image migration,
   the admin direct-upload route/assets, and the internal AI-to-Catalog API path are verified. Cloudflare
-  Images runtime credentials and a live image-upload/channel end-to-end test remain pending. Production
-  configuration is not source controlled.
+  Images runtime credentials and a live image-upload/channel end-to-end test remain pending. Single-VM
+  backup and health-check scripts are in the repository and have not been executed against a live bucket
+  or the current VM. Production configuration is not source controlled.
 - Date: 2026-08-17
-- Last operational update: 2026-09-12
+- Last operational update: 2026-09-26
 - Product owner: User
 - Tech lead: Codex
 - Implementation: Codex, only after product-owner approval; `agy` is not used
@@ -72,8 +73,8 @@ Example customer questions that Version 1 must support:
   a `staging` to `main` pull request. It must not merge `main`, deploy production, run production
   migrations, or issue credentials without a separate explicit product-owner approval.
 - **FR-OPS-003:** Repository CI verifies Management backend tests, frontend typecheck/lint/build,
-  the Python AI service tests/syntax, and the document-intake agent test suite without using Docker
-  on the product owner's Mac.
+  the Python AI service tests/syntax, the document-intake agent test suite, and the single-VM backup
+  and monitor helper checks, without using Docker on the product owner's Mac.
 - **AC-OPS-001:** One Release Steward command refuses a non-fast-forward promotion or a `development` commit
   without a successful CI run, advances `staging`, and maintains one production pull request.
 - **AC-OPS-002:** Codex, Claude Code, Gemini CLI, and GitHub Copilot receive the same canonical
@@ -83,6 +84,20 @@ Example customer questions that Version 1 must support:
   under `docs/`, source branding under `assets/branding/`, and installation examples under
   `examples/`. Preserve framework conventions, database migrations, public API paths and runtime
   service directories. Keep `SPEC.md` and agent discovery files at the repository root.
+- **FR-OPS-005 (approved 2026-09-26):** Run Version 1 on one ordinary virtual machine. Do not add
+  Terraform, Pulumi, Kubernetes, or a hosted metrics stack for this deployment. Docker Compose is
+  the infrastructure definition. A daily host timer writes logical backups of Management MySQL and
+  Chatwoot PostgreSQL, plus local attachment and Redis archives, to one private S3-compatible bucket
+  (Cloudflare R2 or Oracle Cloud Object Storage) and deletes stamps older than the configured
+  retention. A five-minute host timer checks container state, disk use, and backup freshness and
+  sends one webhook when the result changes. Backup credentials stay in `runtime/backup.env` and
+  must not enter the root `.env` or application containers. The bucket stays private because the
+  archives contain business records and conversation history. This requirement does not authorize a
+  production deploy or a live restore on the current VM.
+- **AC-OPS-003:** The ops scripts reject incomplete backup configuration without printing secret
+  values, select only expired timestamp prefixes for deletion, refuse a restore without an exact
+  confirmation and a valid stamp, and report unhealthy containers, a full disk, a stale or failed
+  backup, and recovery without including message bodies or credentials.
 
 ## 3. Users and Roles
 
@@ -553,5 +568,6 @@ Passing unit tests is not proof of production readiness. Production enablement a
 - webhook authenticity and retry tests;
 - representative catalog data quality review;
 - log privacy review;
-- controlled rollout with a rollback path.
- a rollback path.
+- controlled rollout with a rollback path;
+- a private S3-compatible backup bucket, a successful backup, and a restore drill recorded outside
+  the repository before production data depends on this stack.

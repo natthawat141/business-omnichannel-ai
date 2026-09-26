@@ -1,0 +1,30 @@
+# Copy this file to runtime/backup.env on the VM and fill the empty values.
+# chmod 600 runtime/backup.env
+# Do not put these keys in the root .env. Compose injects that file into
+# application containers. This file stays on the host and is read only by
+# infra/ops/backup.sh and infra/ops/monitor.sh.
+#
+# One private S3-compatible bucket is enough. Use either endpoint:
+#   Cloudflare R2:  https://ACCOUNT_ID.r2.cloudflarestorage.com
+#                   BACKUP_S3_REGION=auto
+#   Oracle Cloud Object Storage:
+#                   https://NAMESPACE.compat.objectstorage.REGION.oraclecloud.com
+#                   BACKUP_S3_REGION=ap-singapore-1
+# The bucket must not be public. Backups contain the business database and
+# Chatwoot conversation history.
+
+BACKUP_S3_ENDPOINT=
+BACKUP_S3_BUCKET=
+BACKUP_S3_REGION=auto
+BACKUP_S3_ACCESS_KEY_ID=
+BACKUP_S3_SECRET_ACCESS_KEY=
+BACKUP_S3_PREFIX=business-omnichannel
+BACKUP_RETENTION_DAYS=14
+BACKUP_INCLUDE_FILES=true
+
+# Optional. HTTPS only. A private ntfy, Discord, or Slack incoming webhook.
+# Empty means the timer still records failure in the system journal.
+ALERT_WEBHOOK_URL=
+MONITOR_DISK_PERCENT=85
+BACKUP_MAX_AGE_HOURS=30
+ALERT_REPEAT_HOURS=12

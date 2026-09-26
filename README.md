@@ -212,6 +212,22 @@ The stack starts Caddy, Chatwoot Rails and Sidekiq, Chatwoot PostgreSQL and Redi
 Management and MySQL, plus the AI API and worker. `chatwoot-bootstrap` is idempotent: it prepares
 the Chatwoot account, handoff team, Agent Bot, and service credentials without printing secrets.
 
+### 4. Point backups at one private bucket
+
+Docker Compose is the infrastructure definition for this one VM. Do not add Terraform or a metrics
+stack. Copy [infra/ops/backup.example](infra/ops/backup.example) to `runtime/backup.env`, fill in one
+S3-compatible bucket (Cloudflare R2 or Oracle Cloud Object Storage), and `chmod 600` that file.
+Keep those keys out of the root `.env`.
+
+```bash
+cp infra/ops/backup.example runtime/backup.env
+chmod 600 runtime/backup.env
+sudo ./infra/ops/install-timers.sh
+```
+
+The installer enables a daily backup timer and a five-minute health timer. The operator guide,
+restore command, and alert behavior are in [docs/operations/vm-backup.md](docs/operations/vm-backup.md).
+
 ## Channel Activation
 
 ### LINE
@@ -287,6 +303,7 @@ development, each component has its own setup guide:
 | [Remote MCP internals](apps/management/docs/REMOTE_MCP.md) | Laravel MCP/Passport, scopes, token lifecycle and deployment prerequisites |
 | [Agent setup](apps/management/docs/AI_SETUP.md) | Management onboarding and connection UI |
 | [docs/architecture/overview.md](docs/architecture/overview.md) | Detailed runtime architecture, lifecycle, security boundaries, and deployment topology |
+| [docs/operations/vm-backup.md](docs/operations/vm-backup.md) | Single-VM backup, restore, and health alerts |
 | [docs/integrations/line-rich-menu-flex.md](docs/integrations/line-rich-menu-flex.md) | Environment-neutral LINE Rich Menu and Flex API integration guide |
 | [apps/management/docs/IMPORT_FORMAT.md](apps/management/docs/IMPORT_FORMAT.md) | Current 23-column property import and backward-compatible 9-column format |
 | [AGENTS.md](AGENTS.md) | Engineering workflow, ownership rules, and security constraints |

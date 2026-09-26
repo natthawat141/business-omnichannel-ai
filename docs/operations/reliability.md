@@ -83,3 +83,10 @@ Pattern source: [Redis LMOVE reliable queue](https://redis.io/docs/latest/comman
    ambiguous-delivery records first. Old code cannot consume the processing list or honor claims.
 
 No database migration is required. No VM deployment or live customer-message test is implied by CI.
+
+## Single-VM backup
+
+Logical dumps of Management MySQL and Chatwoot PostgreSQL, plus local attachment and Redis archives,
+go to one private S3-compatible bucket. The host timers and restore guard are described in
+[VM backup and monitor](vm-backup.md). Redis archives can contain queued webhook payloads, so the
+bucket stays private. CI does not upload a backup or restore a database.

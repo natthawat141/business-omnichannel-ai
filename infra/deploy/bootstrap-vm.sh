@@ -79,3 +79,4 @@ EOF
 
 chmod 600 .env
 echo "deployment environment created"
+echo "backup config is separate: copy infra/ops/backup.example to runtime/backup.env, then sudo ./infra/ops/install-timers.sh"
