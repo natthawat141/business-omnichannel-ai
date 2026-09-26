@@ -11,6 +11,7 @@ Application-specific guides remain in [Management docs](../apps/management/docs/
 | UI and accessibility | [Management design system](design/management-design-system.md) |
 | Branches and promotion | [Branch workflow](operations/branching.md) |
 | AI release management | [Release Steward](operations/release-steward.md) |
+| Single-VM backup and health | [VM backup and monitor](operations/vm-backup.md) |
 | LINE integration | [Rich Menu and Flex guide](integrations/line-rich-menu-flex.md) |
 | MCP, OAuth and CLI | [MCP and CLI guide](integrations/mcp-and-cli.md) |
 | Recorded decisions | [Decisions](decisions/) |

@@ -37,6 +37,9 @@ jobs:
             echo "Private-key material must not be committed."
             exit 1
           fi
+      - name: Check single-VM backup and monitor helpers
+        shell: bash
+        run: bash infra/ops/test-ops.sh
       - name: Validate deployment configuration with synthetic environment
         shell: bash
         run: |
