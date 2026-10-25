@@ -243,12 +243,152 @@ class RemoteMcpTest extends TestCase
         $this->assertDatabaseCount('oauth_auth_codes', 0);
     }
 
-    public function test_simple_page_advanced_fallback_and_docs_are_linked(): void
+    public function test_unified_setup_and_legacy_advanced_alias_are_linked(): void
     {
         $this->get('/docs/remote-mcp')->assertOk()->assertSee('Copy page')->assertSee('/admin/ai-setup', false);
         $this->get('/docs/agent-setup')->assertOk()->assertSee('/docs/remote-mcp', false);
         $this->actingAs(User::factory()->create(['is_admin' => true]));
-        $this->get('/admin/ai-setup')->assertInertia(fn ($page) => $page->component('AiConnect')->where('remoteEnabled', true));
+        $this->get('/admin/ai-setup')->assertInertia(fn ($page) => $page->component('AiSetup')->where('remoteEnabled', true)->has('connections')->has('tokens'));
         $this->get('/admin/ai-setup?advanced=1')->assertInertia(fn ($page) => $page->component('AiSetup'));
+    }
+
+    public function test_tools_have_discoverable_titles_and_compatible_structured_results(): void
+    {
+        [$tokens] = $this->connect('mcp:use agent:read agent:catalog');
+        $tools = $this->rpc($tokens['access_token'], 'tools/list')->assertOk()->json('result.tools');
+        foreach ($tools as $tool) {
+            $this->assertNotEmpty($tool['title'] ?? null);
+            $this->assertSame('object', $tool['outputSchema']['type'] ?? null);
+        }
+        $result = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'agent_schema', 'arguments' => []])->assertOk();
+        $structured = $result->json('result.structuredContent');
+        $this->assertIsArray($structured);
+        $this->assertEquals($structured, json_decode($result->json('result.content.0.text'), true));
+        $this->assertNotEmpty($structured['next_steps']);
+        $this->assertContains('catalog', array_column($structured['data']['entities'], 'name'));
+    }
+
+    public function test_record_pagination_can_reach_all_matches_without_silent_filter_changes(): void
+    {
+        [$tokens] = $this->connect('mcp:use agent:read agent:catalog');
+        foreach (['First', 'Second', 'Third'] as $name) {
+            ServicePackage::create(['name_th' => 'Synthetic '.$name]);
+        }
+        $args = ['entity' => 'catalog', 'query' => 'Synthetic', 'limit' => 2];
+        $first = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'agent_records_search', 'arguments' => $args])->assertOk()->json('result.structuredContent.data');
+        $this->assertTrue($first['has_more'] ?? false);
+        $this->assertSame(2, $first['next_page']);
+        $second = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'agent_records_search', 'arguments' => $args + ['page' => $first['next_page']]])->assertOk()->json('result.structuredContent.data');
+        $this->assertFalse($second['has_more']);
+        $this->assertNull($second['next_page']);
+        $ids = array_merge(array_column($first['items'], 'id'), array_column($second['items'], 'id'));
+        $this->assertCount(3, array_unique($ids));
+        $this->assertDatabaseCount('packages', 3);
+    }
+
+    public function test_mcp_errors_explain_recovery_without_leaking_business_values(): void
+    {
+        [$tokens] = $this->connect('mcp:use agent:read agent:catalog');
+        $result = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'agent_record_get', 'arguments' => ['entity' => 'catalog', 'id' => 999999]])->assertOk();
+        $this->assertTrue($result->json('result.isError'));
+        $error = json_decode($result->json('result.content.0.text'), true);
+        $this->assertSame('not_found', $error['error']['code'] ?? null);
+        $this->assertStringContainsString('agent_records_search', implode(' ', $error['next_steps'] ?? []));
+        $invalid = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'agent_records_search', 'arguments' => ['entity' => 'catalog', 'page' => 1001]])->assertOk();
+        $this->assertTrue($invalid->json('result.isError'));
+        $validation = json_decode($invalid->json('result.content.0.text'), true);
+        $this->assertSame('invalid_arguments', $validation['error']['code'] ?? null);
+        $this->assertArrayHasKey('page', $validation['error']['fields'] ?? []);
+    }
+
+    public static function experienceQuestions(): array
+    {
+        $fixtures = simplexml_load_file(__DIR__.'/../Fixtures/Mcp/experience.xml');
+        $cases = [];
+        foreach ($fixtures->qa_pair as $pair) {
+            $cases[(string) $pair['id']] = [(string) $pair['id'], (string) $pair->answer];
+        }
+        return $cases;
+    }
+
+    #[\PHPUnit\Framework\Attributes\DataProvider('experienceQuestions')]
+    public function test_read_only_mcp_experience_workflow(string $case, string $expected): void
+    {
+        $scope = $case === 'metadata-only' ? 'mcp:use'
+            : ($case === 'preview-without-write' ? 'mcp:use agent:read agent:catalog changes:write' : 'mcp:use agent:read agent:catalog');
+        [$tokens] = $this->connect($scope);
+        foreach (['First', 'Second', 'Third'] as $name) ServicePackage::create(['name_th' => 'Synthetic '.$name]);
+        $call = function (string $name, array $arguments = []) use ($tokens): array {
+            $response = $this->rpc($tokens['access_token'], 'tools/call', ['name' => $name, 'arguments' => $arguments])->assertOk();
+            $this->assertFalse($response->json('result.isError') ?? false);
+            $structured = $response->json('result.structuredContent');
+            $this->assertIsArray($structured);
+            $this->assertEquals($structured, json_decode($response->json('result.content.0.text'), true));
+            return $structured;
+        };
+        $tools = $this->rpc($tokens['access_token'], 'tools/list')->assertOk()->json('result.tools');
+        $search = ['entity' => 'catalog', 'query' => 'Synthetic', 'limit' => 2];
+        switch ($case) {
+            case 'metadata-only':
+                $call('document_list', ['page' => 1, 'limit' => 1]);
+                $actual = (string) count($tools);
+                break;
+            case 'current-version':
+                $item = $call('agent_records_search', ['entity' => 'catalog', 'query' => 'First', 'limit' => 1])['data']['items'][0];
+                $detail = $call('agent_record_get', ['entity' => 'catalog', 'id' => $item['id']]);
+                $actual = (string) $detail['data']['lock_version'];
+                break;
+            case 'paged-oldest':
+                $page = $call('agent_records_search', $search)['data'];
+                $this->assertTrue($page['has_more']);
+                $last = $call('agent_records_search', $search + ['page' => $page['next_page']])['data']['items'][0];
+                $actual = $last['name_th'];
+                break;
+            case 'exact-empty':
+                $this->assertNotEmpty($call('agent_records_search', $search)['data']['items']);
+                $actual = (string) count($call('agent_records_search', ['entity' => 'catalog', 'query' => 'not-in-fixture'])['data']['items']);
+                break;
+            case 'scope-recovery':
+                $this->assertSame(['catalog'], array_column($call('agent_schema')['data']['entities'], 'name'));
+                $error = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'agent_records_search', 'arguments' => ['entity' => 'faq']])->assertOk();
+                $this->assertTrue($error->json('result.isError'));
+                $actual = $error->json('result.structuredContent.error.code');
+                break;
+            case 'batch-limit':
+                $this->assertNotContains('agent_changes_submit', array_column($tools, 'name'));
+                $actual = (string) $call('agent_schema')['data']['limits']['operations_per_change_set'];
+                break;
+            case 'structured-parity':
+                $call('agent_schema'); $call('agent_records_search', $search);
+                $actual = 'true';
+                break;
+            case 'missing-record':
+                $error = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'agent_record_get', 'arguments' => ['entity' => 'catalog', 'id' => 999999]])->assertOk();
+                $this->assertTrue($error->json('result.isError'));
+                $item = $call('agent_records_search', $search)['data']['items'][0];
+                $call('agent_record_get', ['entity' => 'catalog', 'id' => $item['id']]);
+                $actual = $error->json('result.structuredContent.error.code');
+                break;
+            case 'preview-without-write':
+                $previewTool = collect($tools)->firstWhere('name', 'agent_changes_preview');
+                $this->assertTrue($previewTool['annotations']['readOnlyHint']);
+                $call('agent_schema');
+                $call('agent_changes_preview', ['operations' => [['entity' => 'catalog', 'action' => 'create', 'client_ref' => 'synthetic-preview', 'payload' => ['name_th' => 'Not submitted']]]]);
+                $actual = 'true';
+                break;
+            case 'repair-page':
+                $searchTool = collect($tools)->firstWhere('name', 'agent_records_search');
+                $this->assertSame(1000, $searchTool['inputSchema']['properties']['page']['maximum']);
+                $error = $this->rpc($tokens['access_token'], 'tools/call', ['name' => 'agent_records_search', 'arguments' => $search + ['page' => 1001]])->assertOk();
+                $this->assertTrue($error->json('result.isError'));
+                $call('agent_records_search', $search + ['page' => 1]);
+                $actual = $error->json('result.structuredContent.error.code');
+                break;
+            default:
+                $this->fail('Unknown evaluation case.');
+        }
+        $this->assertSame($expected, $actual);
+        $this->assertDatabaseCount('packages', 3);
+        $this->assertDatabaseCount('agent_change_sets', 0);
     }
 }

@@ -19,7 +19,7 @@ class AiSetupController extends Controller
     {
         abort_unless((bool) $request->user()?->is_admin, 403);
 
-        return Inertia::render($request->boolean('advanced') ? 'AiSetup' : 'AiConnect', [
+        return Inertia::render('AiSetup', [
             'remoteEnabled' => (bool) config('remote-mcp.enabled'),
             'connections' => \App\Models\McpConnection::query()->where('user_id', $request->user()->id)
                 ->latest('id')->limit(30)->get()->map(fn ($connection) => [

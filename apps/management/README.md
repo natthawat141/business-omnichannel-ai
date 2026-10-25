@@ -292,8 +292,8 @@ See `docs/ARCHITECTURE.md` for the module map and data contracts.
   use neutral copy rather than invented features.
 # Remote AI connections
 
-Simple browser-authorized MCP setup is at `/admin/ai-setup`; local CLI/key setup
-remains at `/admin/ai-setup?advanced=1`. Public guide: `/docs/remote-mcp`.
+Browser-authorized MCP and local CLI/key setup are shown together at `/admin/ai-setup`;
+`?advanced=1` remains a compatible alias. Public guide: `/docs/remote-mcp`.
 Remote access is disabled by default until explicitly configured. See
 [REMOTE_MCP.md](docs/REMOTE_MCP.md) for migrations, signing keys, scopes, lifecycle,
 verification and production enablement gates. No AI tool can approve/apply/publish.

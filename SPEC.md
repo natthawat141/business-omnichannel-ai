@@ -376,12 +376,22 @@ document-upload UI instructions, not the catalog proposal or AI connection capab
   PDF download. Enforce active administrator ownership, token expiry, revocation and
   account security-version changes on every call. Keep stable proposal ownership
   across token refresh. Use short-lived access tokens and bounded refresh lifetime.
-- **FR-SETUP-010:** Default AI Setup to simple browser connection instructions; keep
-  local keys/CLI in Advanced. Provide credential-free Copy prompt, documentation,
+- **FR-SETUP-010 (updated by product owner 2026-10-25):** Provide one AI Setup page with
+  simple browser connection instructions followed by visible local keys/CLI instructions;
+  preserve old `?advanced=1` links as an alias of the same page. Provide credential-free Copy prompt, documentation,
   connection history and revoke controls. Do not claim that copying a prompt installs
   any client or proves connectivity. Expose compatibility limits honestly. Development
   and synthetic tests run on the existing GCP dev VM; production enablement and real
   client/account compatibility require separately recorded verification.
+- **FR-SETUP-011 (approved 2026-10-25):** Provide a copyable whole-page guide containing
+  remote connection steps, the selected local client's agent/manual instructions, verification,
+  troubleshooting and safe connection/key metadata. Never include an issued key, OAuth token,
+  password or cookie. Preserve local client/scope choices and explicit operator-only key issuance.
+- **FR-SETUP-012 (approved 2026-10-25):** Improve MCP discoverability with clear titles,
+  scoped workflow guidance, structured results plus compatible text, bounded record pagination,
+  and actionable errors. Preserve existing tool names, scopes, proposal ownership and human-only
+  approve/apply/publish. Validate synthetic end-to-end tool workflows and keep model evaluation
+  distinct from deterministic protocol checks.
 
 ### 6.9a External staff agent data proposals (approved 2026-09-06)
 

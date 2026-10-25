@@ -144,6 +144,7 @@ class AgentChangeService
         $validator = Validator::make($query, [
             'query' => ['nullable', 'string', 'max:100'],
             'limit' => ['nullable', 'integer', 'min:1', 'max:50'],
+            'page' => ['nullable', 'integer', 'min:1', 'max:1000'],
             'include_archived' => ['nullable', 'boolean'],
             'profile' => ['sometimes', Rule::in(array_keys(app(CatalogProfiles::class)->schemas()))],
             'record_kind' => ['sometimes', Rule::in(['group', 'variant', 'offer'])],
@@ -162,6 +163,7 @@ class AgentChangeService
         }
         $search = trim((string) ($data['query'] ?? ''));
         $limit = (int) ($data['limit'] ?? 20);
+        $page = (int) ($data['page'] ?? 1);
         $includeArchived = (bool) ($data['include_archived'] ?? false);
         $builder = match ($entity) {
             'catalog' => ServicePackage::query(),
@@ -185,10 +187,16 @@ class AgentChangeService
             });
         }
 
+        $items = $builder->orderByDesc('id')->offset(($page - 1) * $limit)->limit($limit + 1)->get();
+        $hasMore = $items->count() > $limit;
+
         return [
             'entity' => $entity,
-            'items' => $builder->orderByDesc('id')->limit($limit)->get()->map(fn (Model $model) => $this->agentRecord($entity, $model))->all(),
+            'items' => $items->take($limit)->map(fn (Model $model) => $this->agentRecord($entity, $model))->values()->all(),
             'limit' => $limit,
+            'page' => $page,
+            'has_more' => $hasMore,
+            'next_page' => $hasMore && $page < 1000 ? $page + 1 : null,
         ];
     }
 
