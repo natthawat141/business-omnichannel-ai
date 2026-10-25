@@ -1,5 +1,21 @@
 # Conversation eval fixtures
 
+## Executable quality harness (v2, 2026-10-25)
+
+`conversation_eval_v2.json` contains 24 synthetic scenarios / 42 turns. Run
+`python tests/eval_runner.py` from `services/ai`; it now executes actual orchestration against
+synthetic HTTP boundaries and returns a nonzero exit code for failed behavior.
+The old runner's structure-only success message is no longer a quality gate.
+
+`python tests/eval_runner.py --live --max-cases 4` uses the configured OpenRouter model with
+synthetic conversations and inventory; Chatwoot and Management remain mocked. It sends no real
+customer messages. Reports contain checks and aggregate metadata, never raw model output.
+Thai/English spellings of the same supplied location can be explicit accepted aliases in checks.
+Neither mode claims a human naturalness score. See
+[conversation quality and rollout](../../../../docs/operations/conversation-quality.md).
+
+The sections below describe the older v1 fixtures and their manual review approach.
+
 Required by [docs/archive/conversational-upgrade-spec.md §10](../../../../docs/archive/conversational-upgrade-spec.md):
 **"ห้ามแก้ prompt โดยไม่มีตัววัด"** — do not change `SYSTEM_PROMPT`, `ZERO_RESULT_CLARIFICATION`, or the
 routing logic in `is_ai_eligible`/`detect_intent`/`_process_locked` without running this fixture set

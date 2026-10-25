@@ -11,6 +11,7 @@ Application-specific guides remain in [Management docs](../apps/management/docs/
 | UI and accessibility | [Management design system](design/management-design-system.md) |
 | Branches and promotion | [Branch workflow](operations/branching.md) |
 | AI release management | [Release Steward](operations/release-steward.md) |
+| AI conversation quality | [Qualification, language and evaluation](operations/conversation-quality.md) |
 | AI Setup and Remote MCP UX review | [Unified setup and MCP improvements](reviews/2026-10-25-ai-setup-mcp-experience.md) |
 | LINE integration | [Rich Menu and Flex guide](integrations/line-rich-menu-flex.md) |
 | MCP, OAuth and CLI | [MCP and CLI guide](integrations/mcp-and-cli.md) |
