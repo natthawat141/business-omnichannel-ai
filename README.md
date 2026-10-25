@@ -298,6 +298,7 @@ development, each component has its own setup guide:
 The repository contains the Version 1 implementation and Docker Compose deployment bundle. The
 base stack and lean real-estate slice are deployed to the configured GCP VM; Management/AI health,
 the property-image migration, upload route/assets, and internal Catalog API path are verified.
-Cloudflare Images runtime credentials and live image-upload/channel end-to-end verification remain
-deployment inputs. Production activation still requires the readiness checks in [SPEC.md](SPEC.md),
-and no credentials belong in this repository.
+Supabase Storage is selected for new property-image uploads in source code; its runtime credentials,
+bucket policy, deployment, and live image-upload/channel end-to-end verification remain pending. The
+running VM has not switched from its existing image provider. Production activation still requires the
+readiness checks in [SPEC.md](SPEC.md), and no credentials belong in this repository.

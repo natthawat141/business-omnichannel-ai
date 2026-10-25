@@ -8,13 +8,19 @@ use App\Http\Controllers\Controller;
 use App\Models\ServicePackage;
 use App\Services\CloudflareImages;
 use App\Services\R2PropertyImages;
+use App\Services\SupabaseStorageImages;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 
 class PropertyImageUploadController extends Controller
 {
-    public function __invoke(Request $request, CloudflareImages $images, R2PropertyImages $r2): JsonResponse
+    public function __invoke(
+        Request $request,
+        CloudflareImages $images,
+        R2PropertyImages $r2,
+        SupabaseStorageImages $supabase,
+    ): JsonResponse
     {
         Gate::authorize('create', ServicePackage::class);
 
@@ -28,6 +34,7 @@ class PropertyImageUploadController extends Controller
             $upload = match ($driver) {
                 'cloudflare_images' => $images->createDirectUpload(),
                 'r2' => $r2->createDirectUpload($contentType),
+                'supabase' => $supabase->createDirectUpload($contentType),
                 default => throw new PropertyImageUploadUnavailable('Unknown property image upload driver.'),
             };
         } catch (CloudflareImagesUnavailable|PropertyImageUploadUnavailable) {

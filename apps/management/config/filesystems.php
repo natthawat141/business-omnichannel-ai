@@ -1,6 +1,7 @@
 <?php
 
 use App\Services\R2SignatureProvider;
+use App\Services\S3ContentTypeSignatureProvider;
 
 return [
 
@@ -72,6 +73,19 @@ return [
             'endpoint' => env('R2_ENDPOINT'),
             'use_path_style_endpoint' => true,
             'signature_provider' => [R2SignatureProvider::class, 'provide'],
+            'throw' => true,
+            'report' => false,
+        ],
+
+        'supabase' => [
+            'driver' => 's3',
+            'key' => env('SUPABASE_S3_ACCESS_KEY_ID'),
+            'secret' => env('SUPABASE_S3_SECRET_ACCESS_KEY'),
+            'region' => env('SUPABASE_S3_REGION'),
+            'bucket' => env('SUPABASE_STORAGE_BUCKET'),
+            'endpoint' => env('SUPABASE_S3_ENDPOINT'),
+            'use_path_style_endpoint' => true,
+            'signature_provider' => [S3ContentTypeSignatureProvider::class, 'provide'],
             'throw' => true,
             'report' => false,
         ],

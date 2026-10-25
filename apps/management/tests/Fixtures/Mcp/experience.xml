@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<evaluation dataset="synthetic-management-v1" mode="read-only-protocol-workflows">
+  <qa_pair id="metadata-only"><question>Connect with document-metadata permission, inspect available tools, then verify a bounded document read. How many tools are exposed without granting business-record access?</question><answer>2</answer></qa_pair>
+  <qa_pair id="current-version"><question>Find the synthetic catalog record named First through search, then read its complete record. What expected_version should an update retain?</question><answer>1</answer></qa_pair>
+  <qa_pair id="paged-oldest"><question>Find the earliest of all three synthetic catalog records using pages of two while preserving the search constraint. What is its name?</question><answer>Synthetic First</answer></qa_pair>
+  <qa_pair id="exact-empty"><question>Confirm that the catalog contains records, then search for a name absent from the fixture. How many exact matches can honestly be offered without changing the query?</question><answer>0</answer></qa_pair>
+  <qa_pair id="scope-recovery"><question>Inspect a catalog-only schema, then request FAQ records. What machine-readable error tells the client to obtain explicit permission rather than widen access?</question><answer>permission_denied</answer></qa_pair>
+  <qa_pair id="batch-limit"><question>Inspect the available read/proposal tools and the scoped business schema before preparing a batch. What is the maximum number of operations in one change set?</question><answer>50</answer></qa_pair>
+  <qa_pair id="structured-parity"><question>Read the schema and a bounded record search. Do both successful responses expose the same JSON through text and structuredContent for old and new clients?</question><answer>true</answer></qa_pair>
+  <qa_pair id="missing-record"><question>Attempt to read an absent catalog ID, follow the returned recovery instruction by searching the same entity, and obtain an existing record. Which error code identified the first failure?</question><answer>not_found</answer></qa_pair>
+  <qa_pair id="preview-without-write"><question>Discover the preview tool, read the schema and preview a synthetic create operation without submitting. Do the read-only annotation and unchanged proposal/business record counts agree?</question><answer>true</answer></qa_pair>
+  <qa_pair id="repair-page"><question>Inspect the search input schema, try a page beyond its documented bound, then repair the request to page one with identical filters. What error code identifies the invalid first request?</question><answer>invalid_arguments</answer></qa_pair>
+</evaluation>

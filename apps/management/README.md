@@ -159,25 +159,30 @@ never in Vite variables or browser code. The development MCP connection is not a
 for Laravel. Cloudflare's workflow is documented in
 [Accept user-uploaded images](https://developers.cloudflare.com/images/storage/upload-images/direct-creator-upload/).
 
-To use Cloudflare R2 instead, create a bucket-scoped Object Read & Write S3 credential, connect the
-bucket to a production custom domain, and set bounded CORS for the Management origin. Do not enable
-the `r2.dev` URL for production.
+To use Supabase Storage for property images, enable the S3 connection and generate an S3 access-key pair
+in Supabase Storage settings. These are separate from `SUPABASE_SECRET_KEY`: Supabase S3 keys grant broad
+storage access across buckets, so keep them in the Management server environment only. Create a public
+`property-images` bucket with an image MIME allowlist and size limit, then verify the browser upload from
+the Management origin passes CORS.
 
 ```dotenv
-PROPERTY_IMAGE_UPLOAD_DRIVER=r2
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET=
-R2_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-R2_PUBLIC_BASE_URL=https://images.example.com
-R2_DIRECT_UPLOAD_EXPIRY_MINUTES=10
+PROPERTY_IMAGE_UPLOAD_DRIVER=supabase
+SUPABASE_URL=https://<project-ref>.supabase.co
+SUPABASE_S3_ACCESS_KEY_ID=
+SUPABASE_S3_SECRET_ACCESS_KEY=
+SUPABASE_S3_REGION=<region-from-supabase-s3-settings>
+SUPABASE_STORAGE_BUCKET=property-images
+SUPABASE_S3_ENDPOINT=https://<project-ref>.storage.supabase.co/storage/v1/s3
+SUPABASE_DIRECT_UPLOAD_EXPIRY_MINUTES=10
 ```
 
-The backend signs one object path and exact content type for a short-lived `PUT`; it never returns the
-R2 secret access key. The access key ID appears only in the standard `X-Amz-Credential` signer field of the
-presigned URL. Apply `infra/cloudflare/r2-cors.json` to the selected bucket after reviewing
-the production origin. R2 presigned upload URLs use the S3 endpoint while public image reads use the
-custom domain.
+Use the exact S3 endpoint and region shown by Supabase; the bucket must be public because its HTTPS URL is
+stored in the catalog and sent to LINE Flex. Never use the publishable key, Supabase secret API key, or
+JWKS URL as an S3 credential. S3 access keys are for server use and must never reach browser code. The
+backend signs one object path and exact content type for a short-lived `PUT`; the access key ID appears
+only in the standard `X-Amz-Credential` signer field. Existing images may continue using their R2 URLs; this
+change does not copy or delete existing objects. For older deployments that still use R2, the prior R2
+environment settings and driver remain supported.
 
 Lean Version 1 does not automatically delete an uploaded image when the admin replaces the URL,
 removes the property, or leaves the form without saving. Those hosted-image lifecycle controls are
@@ -287,8 +292,8 @@ See `docs/ARCHITECTURE.md` for the module map and data contracts.
   use neutral copy rather than invented features.
 # Remote AI connections
 
-Simple browser-authorized MCP setup is at `/admin/ai-setup`; local CLI/key setup
-remains at `/admin/ai-setup?advanced=1`. Public guide: `/docs/remote-mcp`.
+Browser-authorized MCP and local CLI/key setup are shown together at `/admin/ai-setup`;
+`?advanced=1` remains a compatible alias. Public guide: `/docs/remote-mcp`.
 Remote access is disabled by default until explicitly configured. See
 [REMOTE_MCP.md](docs/REMOTE_MCP.md) for migrations, signing keys, scopes, lifecycle,
 verification and production enablement gates. No AI tool can approve/apply/publish.

@@ -44,11 +44,19 @@ return [
     ],
 
     'property_images' => [
-        'driver' => env('PROPERTY_IMAGE_UPLOAD_DRIVER', 'cloudflare_images'),
+        'driver' => env('PROPERTY_IMAGE_UPLOAD_DRIVER', 'supabase'),
     ],
 
     'cloudflare_r2' => [
         'direct_upload_expiry_minutes' => (int) env('R2_DIRECT_UPLOAD_EXPIRY_MINUTES', 10),
+    ],
+
+    'supabase' => [
+        'url' => env('SUPABASE_URL'),
+    ],
+
+    'supabase_storage' => [
+        'direct_upload_expiry_minutes' => (int) env('SUPABASE_DIRECT_UPLOAD_EXPIRY_MINUTES', 10),
     ],
 
     'ai' => [

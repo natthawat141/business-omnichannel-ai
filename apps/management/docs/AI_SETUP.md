@@ -1,5 +1,49 @@
 # AI connection setup
 
+## Unified setup and MCP experience (2026-10-25)
+
+The current `/admin/ai-setup` displays browser connection and Local CLI/MCP instructions together.
+The old `?advanced=1` URL renders the same page. No separate Advanced navigation is required.
+Select the intended metadata/proposal task once, select a local client when needed, and use the
+in-page section links for browser setup, local setup, connections, keys and troubleshooting.
+
+**คัดลอกคู่มือทั้งหน้า** exports the remote steps/prompt, selected local client's agent and manual
+instructions, expiry choice, verification, troubleshooting, documentation and safe connection/key
+metadata. It never reads DOM text or password inputs and never receives the one-time issued key.
+The individual key-copy action remains explicit. Clipboard denial exposes a selectable safe guide.
+Local commands are shown directly in order; the agent prompt retains Preview/Markdown tabs.
+Keys are masked initially with a show/hide control; changing client/scope never issues credentials.
+Connection/key revocation asks for confirmation and preserves recovery after a failed request.
+
+Remote tools keep their names and existing scopes, add human-readable titles and `outputSchema`,
+and return identical JSON in `content[].text` and `structuredContent`. Successful responses retain
+`data`/`meta` and add `next_steps`. Error results use `isError=true` with an `error` object
+(`code`, `message`, bounded `fields`) and actionable `next_steps` without raw exceptions.
+`agent_records_search` accepts optional `page` (1–1000, default 1), keeps `limit` (1–50,
+default 20), and returns `page`, `has_more`, `next_page`. Repeat identical filters when paging.
+The underlying staff REST records API adds the same pagination metadata. Existing callers that
+omit `page` retain the first-page behavior. Scope, proposal ownership and human-only application
+are unchanged. The existing downloadable local package is not silently replaced by this change.
+
+Verification commands from `apps/management`:
+
+```bash
+php vendor/phpunit/phpunit/phpunit tests/Feature/AiSetupTest.php tests/Feature/RemoteMcpTest.php tests/Feature/AgentChangesetTest.php tests/Feature/DocumentApiTest.php
+npm run typecheck
+npm run lint
+npm run build
+node tests/Browser/ai-setup.mjs
+```
+
+The browser runner uses an installed Playwright package. If it is supplied by a host runtime,
+set `PLAYWRIGHT_MODULE` to its module path. `PLAYWRIGHT_BROWSER_CHANNEL=chrome` uses installed
+Chrome when the matching Playwright browser is unavailable. All browser data/credentials are
+synthetic, the HTTP server binds only to loopback, and no production request is made.
+Explicit PHPUnit file arguments avoid macOS AppleDouble discovery sidecars on external disks.
+
+The sections below record earlier versions; their references to a separate Advanced page or
+unavailable remote transport describe historical state.
+
 ## Connected documentation refresh (2026-09-11)
 
 The Setup header links directly to `/docs/agent-setup`; the public documentation links back to
@@ -69,7 +113,7 @@ Implementation: FR-SETUP-001–004, NFR-SEC-003. Route: `/admin/ai-setup`.
 ## Browser connection (2026-09-11)
 
 The default `/admin/ai-setup` is now the simple browser-authorization screen.
-Local setup below remains at `/admin/ai-setup?advanced=1`.
+Local setup is now on `/admin/ai-setup#local-setup`; the old Advanced URL remains an alias.
 See [REMOTE_MCP.md](REMOTE_MCP.md) for feature gating, scopes, migrations, keys,
 security, tests and client-compatibility limits. Remote MCP is disabled by default
 until explicitly configured; copying a prompt is not a successful connection.
