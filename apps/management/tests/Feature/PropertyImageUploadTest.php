@@ -19,6 +19,7 @@ class PropertyImageUploadTest extends TestCase
         parent::setUp();
 
         config([
+            'services.property_images.driver' => 'cloudflare_images',
             'services.cloudflare_images.account_id' => self::ACCOUNT_ID,
             'services.cloudflare_images.api_token' => 'test-cloudflare-token',
             'services.cloudflare_images.delivery_base_url' => 'https://imagedelivery.net/test-account-hash',
@@ -183,6 +184,52 @@ class PropertyImageUploadTest extends TestCase
             ->postJson('/admin/property-images/direct-upload', ['content_type' => 'image/svg+xml'])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('content_type');
+    }
+
+    public function test_supabase_returns_a_content_type_bound_presigned_put_without_exposing_the_secret(): void
+    {
+        config([
+            'services.property_images.driver' => 'supabase',
+            'services.supabase.url' => 'https://project-ref.supabase.co',
+            'services.supabase_storage.direct_upload_expiry_minutes' => 10,
+            'filesystems.disks.supabase.key' => 'supabase-test-access-key',
+            'filesystems.disks.supabase.secret' => 'supabase-test-secret',
+            'filesystems.disks.supabase.region' => 'ap-northeast-2',
+            'filesystems.disks.supabase.bucket' => 'property-images',
+            'filesystems.disks.supabase.endpoint' => 'https://project-ref.storage.supabase.co/storage/v1/s3',
+            'filesystems.disks.supabase.use_path_style_endpoint' => true,
+            'filesystems.disks.supabase.signature_provider' => [
+                \App\Services\S3ContentTypeSignatureProvider::class,
+                'provide',
+            ],
+            'filesystems.disks.supabase.throw' => true,
+            'filesystems.disks.supabase.report' => false,
+        ]);
+
+        $response = $this->actingAs(User::factory()->create(['is_admin' => true]))
+            ->postJson('/admin/property-images/direct-upload', ['content_type' => 'image/webp'])
+            ->assertCreated()
+            ->assertJsonPath('data.method', 'PUT')
+            ->assertJsonPath('data.headers.Content-Type', 'image/webp')
+            ->assertJsonMissingPath('data.headers.Host');
+
+        $this->assertMatchesRegularExpression(
+            '#^https://project-ref\.supabase\.co/storage/v1/object/public/property-images/properties/[0-9a-f-]+\.webp$#',
+            (string) $response->json('data.delivery_url')
+        );
+
+        $uploadUrl = (string) $response->json('data.upload_url');
+        $this->assertMatchesRegularExpression(
+            '#^https://project-ref\.storage\.supabase\.co/storage/v1/s3/property-images/properties/[0-9a-f-]+\.webp\?#',
+            $uploadUrl
+        );
+        parse_str((string) parse_url($uploadUrl, PHP_URL_QUERY), $query);
+        $this->assertSame('content-type;host', $query['X-Amz-SignedHeaders'] ?? null);
+        $this->assertStringStartsWith(
+            'supabase-test-access-key/',
+            (string) ($query['X-Amz-Credential'] ?? '')
+        );
+        $response->assertDontSee('supabase-test-secret');
     }
 
     public function test_unknown_image_driver_fails_closed(): void
