@@ -41,7 +41,7 @@ Example customer questions that Version 1 must support:
 5. Chatwoot is the only primary channel/conversation path for LINE and WhatsApp.
 6. The AI queries business information through authenticated Management APIs and never connects directly to MySQL.
 7. The Version 1 reference dataset represents a real-estate business that sells and rents condos, houses, land, and commercial properties. Reference data is synthetic and contains no real customer PII.
-8. The LLM provider is OpenRouter and the configured model is `deepseek/deepseek-v4-flash-0731`.
+8. The LLM provider is OpenRouter and the configured model is `openai/gpt-6-luna`.
 9. `OPENROUTER_API_KEY` is supplied through the runtime environment only. Its value must never appear in source control, documentation, logs, container images, or test fixtures.
 10. The deployment target is the existing GCP VM environment managed through Bangna Hos CLI. Exact project, zone, instance, network, and production identifiers remain deployment configuration and are not committed to this specification.
 11. Version 1 uses a lean real-estate-first product experience for the current business: customer copy,
@@ -52,7 +52,7 @@ Example customer questions that Version 1 must support:
 ### Confirmed LLM Configuration
 
 - Provider API: OpenRouter.
-- Model: `deepseek/deepseek-v4-flash-0731`.
+- Model: `openai/gpt-6-luna` (product owner selection, 2026-10-25).
 - Runtime variable: `OPENROUTER_API_KEY`.
 - The model name is configuration, not hard-coded policy logic.
 - No automatic fallback to another provider or model is allowed in Version 1 unless the product owner approves it.
@@ -321,6 +321,12 @@ The canonical concept is `Catalog Item`. Existing packages are one catalog item 
 - **FR-AI-007:** Results must show enough identity to continue the conversation: item name/code, location, relevant attributes, price/status, and a safe next action.
 - **FR-AI-008:** The orchestrator must not load the entire catalog into the prompt. Default result limit is 10; the maximum is 20.
 - **FR-AI-009:** Search filters and returned facts are treated as data, not instructions to the model.
+
+- **FR-AI-010 (approved by product owner 2026-10-25):** Match the latest substantive customer language, including deterministic clarification, zero-result and handoff replies. Short numeric answers retain the established language unless the customer explicitly requests another language.
+- **FR-AI-011 (approved by product owner 2026-10-25):** Qualify catalog inquiries conversationally: ask only missing information that matters, remember transaction type, budget and desired start/move-in period, and share confirmed matching inventory as soon as available. A desired period is a preference, not a booking or a promise of future availability.
+- **FR-AI-012 (approved by product owner 2026-10-25):** Use bounded conversation planning with validated structured filters and explicit new-search/context transitions. Ground area or product advice in Management data; retain the existing consent requirement before broadening exact filters and never fabricate listings, travel times, prices or availability.
+- **FR-AI-013 (approved by product owner 2026-10-25):** Offer staff follow-up after collecting relevant needs; route to the configured Chatwoot team after consent and record a bounded deterministic private summary of those needs and referenced item IDs. Explicit human, complaint and payment-problem requests retain immediate priority. Do not promise a callback time without an approved business policy.
+- **FR-AI-014 (approved by product owner 2026-10-25):** A conversation-quality harness must execute actual orchestration over synthetic multi-turn scenarios and assert language, qualification memory, grounded item presentation, consent, context changes and human-ownership protection. Structural fixture validation alone is not a quality score; distinguish deterministic regression results from live-model and human evaluation.
 
 ### 6.7 Human Handoff
 

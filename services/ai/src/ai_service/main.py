@@ -13,7 +13,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Mapping
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any
 
@@ -23,6 +23,10 @@ from redis import asyncio as redis_async
 from redis.exceptions import RedisError
 
 from .history import build_history
+from .conversation import (
+    ConversationPlan, catalog_presentation, confirmation, declined, lead_summary,
+    localized, next_question, plan_conversation, response_language,
+)
 from .reliable_queue import DeliveryUncertain, reserve_delivery, mark_delivered, mark_rejected
 
 LOG = logging.getLogger("ai_service")
@@ -145,6 +149,8 @@ class Settings:
     processing_timeout_seconds: float = 25
     context_ttl_seconds: int = 86_400
     business_profile_cache_ttl_seconds: float = 300
+    conversation_planner_enabled: bool = False
+    planner_timeout_seconds: float = 5
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -173,7 +179,7 @@ class Settings:
             chatwoot_team_id=integer("CHATWOOT_HANDOFF_TEAM_ID"),
             webhook_token=os.getenv("CHATWOOT_WEBHOOK_TOKEN", ""),
             openrouter_api_key=os.getenv("OPENROUTER_API_KEY", ""),
-            openrouter_model=os.getenv("OPENROUTER_MODEL", "deepseek/deepseek-v4-flash-0731"),
+            openrouter_model=os.getenv("OPENROUTER_MODEL", "openai/gpt-6-luna"),
             allowed_inbox_ids=frozenset(inboxes),
             redis_url=os.getenv("AI_QUEUE_REDIS_URL", os.getenv("REDIS_URL", "")).strip(),
             line_channel_access_token=os.getenv("LINE_CHANNEL_ACCESS_TOKEN", "").strip(),
@@ -183,6 +189,8 @@ class Settings:
             processing_timeout_seconds=number("PROCESSING_TIMEOUT_SECONDS", 25),
             context_ttl_seconds=integer("AI_CONTEXT_TTL_SECONDS", 86_400),
             business_profile_cache_ttl_seconds=number("BUSINESS_PROFILE_CACHE_TTL_SECONDS", 300),
+            conversation_planner_enabled=os.getenv("AI_CONVERSATION_PLANNER_ENABLED", "true").lower() in {"1", "true", "yes"},
+            planner_timeout_seconds=number("AI_PLANNER_TIMEOUT_SECONDS", 5),
         )
 
 
@@ -339,7 +347,7 @@ class ManagementClient:
             return None
 
 
-async def line_push_flex(client: httpx.AsyncClient, token: str, to: str, flex_payload: Mapping[str, Any]) -> bool:
+async def line_push_flex(client: httpx.AsyncClient, token: str, to: str, flex_payload: Mapping[str, Any], *, follow_up: str = "") -> bool:
     if not token or not to or not to.startswith("U"):
         return False
     if not await reserve_delivery("customer-visible"):
@@ -350,7 +358,7 @@ async def line_push_flex(client: httpx.AsyncClient, token: str, to: str, flex_pa
             headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
             json={
                 "to": to,
-                "messages": [dict(flex_payload)],
+                "messages": [dict(flex_payload)] + ([{"type": "text", "text": follow_up[:2000]}] if follow_up else []),
             },
             timeout=8.0,
         )
@@ -413,9 +421,15 @@ def normalize_text(message: str) -> str:
     return " ".join(message.lower().split())
 
 
+def contains_term(text: str, term: str) -> bool:
+    return bool(re.search(r"(?<![a-z])" + re.escape(term) + r"s?(?![a-z])", text)) if term.isascii() else term in text
+
+
 def handoff_reason(message: str) -> str | None:
     text = normalize_text(message)
-    if any(phrase in text for phrase in EXPLICIT_HANDOFF_PHRASES):
+    if any(phrase in text for phrase in EXPLICIT_HANDOFF_PHRASES) or re.search(
+        r"\b(?:speak|talk) to (?:a |an )?(?:human|agent|person|staff)\b|\b(?:please )?(?:call|contact) me\b|(?:ให้|ช่วย|ขอ).{0,12}(?:ติดต่อกลับ|โทรกลับ)", text
+    ):
         return "customer_request"
     if any(phrase in text for phrase in COMPLAINT_PHRASES):
         return "complaint"
@@ -441,7 +455,7 @@ def should_escalate_by_profile(content: str, profile: Mapping[str, Any] | None) 
 
 def is_catalog(message: str) -> bool:
     lower = normalize_text(message)
-    if any(term in lower for term in CATALOG_TERMS):
+    if any(contains_term(lower, term) for term in CATALOG_TERMS):
         return True
     if re.search(r"(?:รหัส|code)\s*[:#-]?\s*[A-Za-z0-9_-]+", lower):
         return True
@@ -512,15 +526,15 @@ def clean_catalog_location(raw: str) -> str | None:
 def catalog_filters(message: str) -> dict[str, Any]:
     lower = normalize_text(message)
     filters: dict[str, Any] = {"limit": 10, "sort": "relevance"}
-    if any(k in lower for k in ("คอนโด", "condo", "apartment", "콘도", "아파트", "コンド", "マンション", "公寓")):
+    if any(contains_term(lower, k) for k in ("คอนโด", "condo", "apartment", "콘도", "아파트", "コンド", "マンション", "公寓")):
         filters["category_slug"] = "condo"
-    elif any(k in lower for k in ("ที่ดิน", "land", "토지", "土地")):
+    elif any(contains_term(lower, k) for k in ("ที่ดิน", "land", "토지", "土地")):
         filters["category_slug"] = "land"
-    elif any(k in lower for k in ("บ้าน", "house", "villa", "townhouse", "townhome", "주택", "집", "一戸建て", "别墅")):
+    elif any(contains_term(lower, k) for k in ("บ้าน", "house", "villa", "townhouse", "townhome", "주택", "집", "一戸建て", "别墅")):
         filters["category_slug"] = "house"
-    if any(k in lower for k in ("เช่า", "rent", "for rent", "lease", "월세", "전세", "賃貸", "租")):
+    if any(contains_term(lower, k) for k in ("เช่า", "rent", "renting", "rental", "lease", "leasing", "월세", "전세", "賃貸", "租")):
         filters["transaction_type"] = "rent"
-    elif any(k in lower for k in ("ขาย", "ซื้อ", "sale", "for sale", "buy", "purchase", "매매", "구매", "購入", "买")):
+    elif any(contains_term(lower, k) for k in ("ขาย", "ซื้อ", "sale", "sell", "selling", "buy", "buying", "purchase", "매매", "구매", "購入", "买")):
         filters["transaction_type"] = "sale"
     if match := re.search(r"(\d+)\s*(?:ห้องนอน|bedroom|bedrooms|bed|beds|베드룸|룸|寝室|卧)", lower):
         filters["attributes"] = {"bedrooms": {"gte": int(match.group(1))}}
@@ -570,9 +584,9 @@ def catalog_filters(message: str) -> dict[str, Any]:
         filters["price"] = {"max": value * multiplier}
 
     loc = None
-    if match := re.search(r"(?:แถว|ย่าน|โซน|ใกล้|ติด|ทำเล|in|at|near)\s+([^,?!.\n]+?)(?=\s+(?:ราคา|งบ|ไม่เกิน|มี|ว่าง|ตาราง|นอน|bed|budget|price)|[,?!.\n]|$)", message):
+    if match := re.search(r"(?:แถว|ย่าน|โซน|ใกล้|ติด|ทำเล|\b(?:in|at|near)\b)\s+([^,?!.\n]+?)(?=\s+(?:ราคา|งบ|ไม่เกิน|มี|ว่าง|ตาราง|นอน|bed|budget|price)|[,?!.\n]|$)", message, re.IGNORECASE):
         loc = clean_catalog_location(match.group(1))
-    if not loc and (match := re.search(r"(?:แถว|ย่าน|โซน|ใกล้|ติด|ทำเล|in|at|near)\s*([ก-๙A-Za-z0-9-]{2,80})", message)):
+    if not loc and (match := re.search(r"(?:แถว|ย่าน|โซน|ใกล้|ติด|ทำเล|\b(?:in|at|near)\b)\s*([ก-๙A-Za-z0-9-]{2,80})", message, re.IGNORECASE)):
         loc = clean_catalog_location(match.group(1))
     if not loc and (match := re.search(r"(?:คอนโด|ที่ดิน|บ้าน)\s+([^,?!.\n]+?)(?=\s+(?:ราคา|งบ|ไม่เกิน|มี|ว่าง|ตาราง|นอน|bed|budget|price)|[,?!.\n]|$)", message)):
         loc = clean_catalog_location(match.group(1))
@@ -765,6 +779,11 @@ Conversation Style:
 - Greet only on the first turn of a conversation; do not repeat greetings on every message.
 - Do not repeat the customer's question, and avoid ending every message with repetitive filler like "Is there anything else I can help you with?".
 - When referring to items like "the first one", "that one", or "cheaper options", interpret them from the preceding conversation history.
+- Treat the latest substantive customer message and REPLY_LANGUAGE as authoritative for reply language, even when previous replies were in another language.
+- Ask only for missing needs. Do not re-ask a known budget, transaction type or desired start period.
+- A preferred move-in/start period is a customer preference, not a booking or confirmed future availability.
+- Area and transport advice must come from provided knowledge. Never invent commute times, available listings or callbacks already made.
+- When RESPONSE_TASK asks for a brief introduction or area advice, do not add questions or duplicate listing cards: the application adds verified item details and the next question.
 """
 
 
@@ -776,6 +795,8 @@ async def grounded_answer(
     history: list[dict[str, str]],
     business_profile: Mapping[str, Any] | None = None,
     alternatives: list[dict[str, Any]] | None = None,
+    language: str | None = None,
+    response_task: Mapping[str, Any] | None = None,
 ) -> str | None:
     if not settings.openrouter_api_key:
         return None
@@ -783,6 +804,7 @@ async def grounded_answer(
         {"role": "system", "content": SYSTEM_PROMPT},
         {"role": "system", "content": f"BUSINESS_PROFILE={compact_records([dict(business_profile)] if business_profile else [])}"},
         {"role": "system", "content": f"BUSINESS_CONTEXT={compact_records(records)}"},
+        {"role": "system", "content": f"REPLY_LANGUAGE={language or response_language(question)}\nRESPONSE_TASK={json.dumps(dict(response_task or {}), ensure_ascii=False)}"},
         *history,
     ]
     if not (messages and messages[-1]["role"] == "user" and messages[-1]["content"].strip() == question.strip()):
@@ -796,7 +818,13 @@ async def grounded_answer(
         )
         response.raise_for_status()
         content = nested(response.json(), "choices", 0, "message", "content")
-        return content.strip()[:3000] if isinstance(content, str) and content.strip() else None
+        if not isinstance(content, str) or not content.strip():
+            return None
+        answer = content.strip()[:3000]
+        target_language = language or response_language(question)
+        if response_language(answer, target_language) != target_language:
+            return None
+        return answer
     except (httpx.HTTPError, ValueError, TypeError):
         return None
 
@@ -809,7 +837,7 @@ def without_labels(labels: list[str], removed: tuple[str, ...]) -> list[str]:
     return [item for item in labels if item not in removed]
 
 
-async def handoff(chatwoot: ChatwootClient, account_id: int, conversation_id: int, reason: str, current_labels: list[str] | None = None) -> None:
+async def handoff(chatwoot: ChatwootClient, account_id: int, conversation_id: int, reason: str, current_labels: list[str] | None = None, *, language: str | None = None) -> None:
     if not chatwoot.settings.chatwoot_team_id:
         raise UpstreamError("handoff_team_not_configured")
     latest = await chatwoot.conversation(account_id, conversation_id)
@@ -839,8 +867,12 @@ async def handoff(chatwoot: ChatwootClient, account_id: int, conversation_id: in
     # Routing is complete independently of notification delivery. Later
     # customer events must never replay an uncertain acknowledgement.
     await chatwoot.custom_attributes(account_id, conversation_id, {"ai_handoff_pending": False})
-    await chatwoot.message(account_id, conversation_id, "รับเรื่องแล้วครับ กำลังส่งต่อให้ทีมเจ้าหน้าที่ดูแลต่อให้")
-    await chatwoot.message(account_id, conversation_id, f"AI handoff: {reason}", private=True)
+    await chatwoot.message(account_id, conversation_id, localized("handoff", language or str(attrs.get("ai_response_language", "th"))))
+    requirements = read_json_attr(attrs, "ai_customer_requirements", {})
+    filters = read_json_attr(attrs, "ai_catalog_filters", {})
+    item_ids = read_json_attr(attrs, "ai_last_catalog_result_ids", [])
+    summary = "\n" + lead_summary(filters, requirements, item_ids) if requirements else ""
+    await chatwoot.message(account_id, conversation_id, f"AI handoff: {reason}{summary}", private=True)
 
 
 async def return_to_ai(chatwoot: ChatwootClient, account_id: int, conversation_id: int, current_labels: list[str]) -> None:
@@ -880,15 +912,16 @@ async def _process_locked(
         LOG.info("ignored_event account=%s conversation=%s reason=duplicate", account_id, conversation_id)
         return
 
+    language = response_language(content, str(attrs.get("ai_response_language", "th")))
     reason = handoff_reason(content)
     if reason:
-        await handoff(chatwoot, account_id, conversation_id, reason, current_labels)
+        await handoff(chatwoot, account_id, conversation_id, reason, current_labels, language=language)
         LOG.info("handoff account=%s conversation=%s reason=%s duration_ms=%d", account_id, conversation_id, reason, int((time.monotonic() - started) * 1000))
         return
 
     business_profile = await cached_business_profile(management, settings.business_profile_cache_ttl_seconds)
     if should_escalate_by_profile(content, business_profile):
-        await handoff(chatwoot, account_id, conversation_id, "business_policy_escalation", current_labels)
+        await handoff(chatwoot, account_id, conversation_id, "business_policy_escalation", current_labels, language=language)
         LOG.info("handoff account=%s conversation=%s reason=business_policy_escalation duration_ms=%d", account_id, conversation_id, int((time.monotonic() - started) * 1000))
         return
 
@@ -896,27 +929,85 @@ async def _process_locked(
     previous_intent = str(attrs.get("ai_last_intent", "")) if fresh_context else None
     previous_filters = read_json_attr(attrs, "ai_catalog_filters", {}) if fresh_context else {}
     previous_result_ids = read_json_attr(attrs, "ai_last_catalog_result_ids", []) if fresh_context else []
+    requirements = read_json_attr(attrs, "ai_customer_requirements", {}) if fresh_context else {}
+    if settings.conversation_planner_enabled and requirements.get("callback_offer_pending") and confirmation(content):
+        await handoff(chatwoot, account_id, conversation_id, "customer_followup", current_labels, language=language)
+        return
     relaxation_pending = fresh_context and attrs.get("ai_catalog_relaxation_pending") is True
-    relaxation_consent = relaxation_pending and consents_to_catalog_relaxation(content)
+    explicit_alternatives = consents_to_catalog_relaxation(content)
+    relaxation_consent = (relaxation_pending and (explicit_alternatives or confirmation(content))) or (
+        settings.conversation_planner_enabled and bool(previous_filters) and not previous_result_ids and explicit_alternatives
+    )
     # A knowledge question between catalog turns must not destroy the ability
     # to understand the next "เอา 2 ห้องนอน" follow-up.
     intent = "catalog" if relaxation_consent else detect_intent(content, "catalog" if previous_filters else previous_intent)
 
     chat_messages = await chatwoot.messages(account_id, conversation_id)
     history = build_history(chat_messages)
+    planned: ConversationPlan | None = None
+    if settings.conversation_planner_enabled and intent != "smalltalk":
+        planned = await plan_conversation(settings, client, content, history, previous_filters, requirements, business_profile)
+        if planned and "transaction_type" in planned.filters and "transaction_type" not in catalog_filters(content):
+            planned = replace(planned, filters={k: v for k, v in planned.filters.items() if k != "transaction_type"})
+        if planned is None:
+            fallback_filters = catalog_filters(content)
+            fallback_intent = intent
+            desired_start = None
+            if previous_filters and requirements.get("last_question") in {"budget", "budget_rent"} and re.fullmatch(r"[\d,.\s]+(?:บาท|thb|baht|k|m)?", content.strip(), re.IGNORECASE):
+                fallback_filters = catalog_filters("budget " + content)
+                fallback_intent = "catalog"
+            if previous_filters and requirements.get("last_question") == "desired_start" and len(content) <= 80 and re.search(r"month|next|january|february|march|april|may|june|july|august|september|october|november|december|เดือน|มกรา|กุมภา|มีนา|เมษา|พฤษภา|มิถุนา|กรกฎา|สิงหา|กันยา|ตุลา|พฤศจิกา|ธันวา", content, re.IGNORECASE):
+                desired_start = content.strip()
+                fallback_intent = "catalog"
+            planned = ConversationPlan(fallback_intent, fallback_filters, desired_start=desired_start)
+        intent = "catalog" if planned.intent == "area_advice" else planned.intent
+        changed_core = any(key in planned.filters and planned.filters[key] != previous_filters.get(key)
+                           for key in ("category_slug", "transaction_type", "location", "query"))
+        if planned.new_search and (changed_core or any(p in normalize_text(content) for p in RESET_ALL_PHRASES)):
+            previous_filters, previous_result_ids, requirements = {}, [], {}
+            relaxation_consent = False
+    conversational_catalog = settings.conversation_planner_enabled and intent == "catalog"
+    area_advice = planned is not None and planned.intent == "area_advice"
+    if settings.conversation_planner_enabled and declined(content) and requirements.get("callback_offer_pending"):
+        requirements = {**requirements, "callback_declined": True, "callback_offer_pending": False}
 
     records: list[dict[str, Any]] = []
+    advice_records: list[dict[str, Any]] = []
     alternatives: list[dict[str, Any]] = []
     catalog_state: dict[str, Any] | None = None
     catalog_relaxation_prompt = False
     catalog_relaxation_empty = False
+    qualification_question = ""
+    qualification_key = ""
+    requested_filters: dict[str, Any] = {}
     if intent == "catalog":
-        current_filters = catalog_filters(content)
+        current_filters = planned.filters if planned is not None else catalog_filters(content)
         merged = (
             relaxed_catalog_filters(previous_filters)
             if relaxation_consent
             else merge_catalog_filters(apply_resets(content, previous_filters), current_filters)
         )
+        if conversational_catalog and not relaxation_consent:
+            for key in ("location", "price", "query"):
+                if key in current_filters:
+                    merged[key] = deepcopy(current_filters[key])
+        requested_filters = deepcopy(merged)
+        if relaxation_consent and isinstance(requirements.get("requested_filters"), dict):
+            requested_filters = deepcopy(requirements["requested_filters"])
+        if conversational_catalog:
+            requirements = {**requirements, "language": language, "requested_filters": requested_filters}
+            if planned and planned.desired_start and planned.desired_start.casefold() in content.casefold():
+                requirements["desired_start"] = planned.desired_start
+            if re.search(r"ไม่จำกัดงบ|งบเท่าไหร่ก็ได้|ยังไม่ทราบงบ|any budget|(?:not sure|don't know).{0,15}budget", content, re.IGNORECASE) or (
+                requirements.get("last_question") in {"budget", "budget_rent"}
+                and re.search(r"ยังไม่แน่ใจ|ยังไม่รู้|ไม่ทราบ|not sure|don't know", content, re.IGNORECASE)
+            ):
+                requirements["budget_unspecified"] = True
+            if current_filters.get("price"):
+                requirements.pop("budget_unspecified", None)
+            discovery = area_advice or bool(re.search(r"ที่ไหนบ้าง|มีอะไรบ้าง|what.*available|which.*areas", content, re.IGNORECASE))
+            qualification_key = next_question(requested_filters, requirements, discovery=discovery)
+            qualification_question = localized(qualification_key, language)
         index = requested_result_index(content)
         if index is not None and previous_result_ids:
             try:
@@ -927,8 +1018,10 @@ async def _process_locked(
                 detail = await management.catalog_item(int(item_id))
                 records = [detail] if detail else []
                 catalog_state = None
-        if not records and not (index is not None and previous_result_ids):
+        if not records and not (index is not None and previous_result_ids) and qualification_key != "transaction":
             records = await management.search(merged)
+            if conversational_catalog:
+                records = [r for r in records if r.get("availability") in (None, "available")][:3]
             catalog_relaxation_prompt = not records and not relaxation_consent
             catalog_relaxation_empty = not records and relaxation_consent
             result_ids = [item["id"] for item in records if isinstance(item.get("id"), int)][:10]
@@ -938,6 +1031,26 @@ async def _process_locked(
                 "ai_last_catalog_result_ids": json.dumps(result_ids),
                 "ai_context_updated_at": datetime.now(timezone.utc).isoformat(),
                 "ai_catalog_relaxation_pending": catalog_relaxation_prompt,
+            }
+        if conversational_catalog:
+            if area_advice:
+                advice_records = await management.knowledge(planned.knowledge_query or search_query(content))
+            if not records and qualification_key == "choose":
+                catalog_relaxation_prompt = not relaxation_consent
+                catalog_relaxation_empty = relaxation_consent
+                qualification_question = ""
+            else:
+                catalog_relaxation_prompt = catalog_relaxation_empty = False
+            requirements = {**requirements, "last_question": qualification_key,
+                            "callback_offer_pending": qualification_key == "callback"}
+            catalog_state = {
+                **(catalog_state or {}), "ai_last_intent": "catalog",
+                "ai_catalog_filters": json.dumps(merged, ensure_ascii=False, separators=(",", ":")),
+                "ai_last_catalog_result_ids": json.dumps([r["id"] for r in records if isinstance(r.get("id"), int)][:10]),
+                "ai_customer_requirements": json.dumps(requirements, ensure_ascii=False, separators=(",", ":")),
+                "ai_context_updated_at": datetime.now(timezone.utc).isoformat(),
+                "ai_catalog_relaxation_pending": catalog_relaxation_prompt,
+                "ai_zero_result_streak": 0,
             }
     elif intent == "knowledge":
         records = await management.knowledge(search_query(content))
@@ -949,10 +1062,29 @@ async def _process_locked(
     # [], catalog_state stays None so a catalog conversation's context (filters,
     # last result ids) survives a "สวัสดีครับ" in the middle untouched.
 
-    if catalog_relaxation_prompt:
-        answer = CATALOG_RELAXATION_PROMPT
+    if conversational_catalog and qualification_key == "transaction":
+        answer = qualification_question
+    elif catalog_relaxation_prompt:
+        answer = localized("relax", language)
     elif catalog_relaxation_empty:
-        answer = CATALOG_RELAXATION_EMPTY
+        answer = localized("relax_empty", language)
+    elif conversational_catalog:
+        narrative = None
+        if not records and advice_records:
+            narrative = await grounded_answer(
+                settings, client, content, advice_records, history, business_profile,
+                language=language, response_task={
+                    "task": "grounded_area_advice_no_inventory_claim",
+                    "exact_inventory_count": len(records), "requirements": requirements,
+                    "next_question": qualification_key, "match_type": "alternatives" if relaxation_consent else "exact",
+                },
+            )
+        if relaxation_consent and records:
+            narrative = ("ตัวเลือกเหล่านี้ผ่อนเงื่อนไขรายละเอียดจากที่ขอไว้ครับ" if language == "th"
+                         else "These alternatives relax the original detailed filters.")
+        intro = narrative or localized("inventory" if records else "no_match", language)
+        presentation = catalog_presentation(records, language)
+        answer = "\n\n".join(part for part in (intro, presentation, qualification_question) if part)
     elif intent == "knowledge" and not records:
         # Never let the model answer a specific knowledge question from an
         # empty context (still true -- this never calls the LLM on zero
@@ -968,15 +1100,15 @@ async def _process_locked(
         if zero_streak >= 1:
             answer = None
         else:
-            answer = ZERO_RESULT_CLARIFICATION
+            answer = localized("clarify", language)
             catalog_state = {**(catalog_state or {}), "ai_zero_result_streak": zero_streak + 1}
     else:
-        answer = await grounded_answer(settings, client, content, records, history, business_profile, alternatives=alternatives)
+        answer = await grounded_answer(settings, client, content, records, history, business_profile, alternatives=alternatives, language=language)
         if answer and catalog_state is not None:
             # Forward progress: a real answer clears any pending clarification streak.
             catalog_state = {**catalog_state, "ai_zero_result_streak": 0}
     if not answer:
-        await handoff(chatwoot, account_id, conversation_id, "cannot_confirm", current_labels)
+        await handoff(chatwoot, account_id, conversation_id, "cannot_confirm", current_labels, language=language)
         LOG.info("handoff account=%s conversation=%s reason=cannot_confirm", account_id, conversation_id)
         return
 
@@ -1007,7 +1139,10 @@ async def _process_locked(
                 if flex_payload:
                     if not is_ai_eligible(await chatwoot.conversation(account_id, conversation_id), settings):
                         return
-                    flex_delivered = await line_push_flex(client, settings.line_channel_access_token, line_user_id, flex_payload)
+                    flex_delivered = await line_push_flex(
+                        client, settings.line_channel_access_token, line_user_id, flex_payload,
+                        **({"follow_up": qualification_question} if qualification_question else {}),
+                    )
             else:
                 lower_content = normalize_text(content)
                 service_card_type: str | None = None
@@ -1040,7 +1175,7 @@ async def _process_locked(
         raise
 
     try:
-        await chatwoot.custom_attributes(account_id, conversation_id, {"ai_completed_message_id": str(message_id)}, require_ai=True)
+        await chatwoot.custom_attributes(account_id, conversation_id, {"ai_completed_message_id": str(message_id), "ai_response_language": language}, require_ai=True)
     except UpstreamError:
         # Delivery succeeded but marker persistence is uncertain. Do not retry
         # the POST; the next webhook will be guarded by the process lock/state.
