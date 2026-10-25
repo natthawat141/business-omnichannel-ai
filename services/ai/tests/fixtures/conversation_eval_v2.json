@@ -1,0 +1,1086 @@
+{
+  "version": 2,
+  "data_kind": "synthetic-only",
+  "description": "Actual process() regression scenarios; live mode swaps only the OpenRouter boundary. Not a human naturalness score.",
+  "cases": [
+    {
+      "id": "th-targeted-transaction",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "มีคอนโดแถวสีลมไหม",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "location": {
+                "text": "สีลม"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "ซื้อหรือเช่า"
+            ],
+            "not_contains": [
+              "ยังไม่พบ"
+            ],
+            "language": "th",
+            "search_delta": 0
+          }
+        }
+      ]
+    },
+    {
+      "id": "en-rental-budget",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "I want to rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "budget"
+            ],
+            "language": "en",
+            "search": {
+              "category_slug": "condo",
+              "transaction_type": "rent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "en-share-confirmed-listing",
+      "inventory": "default",
+      "turns": [
+        {
+          "customer": "Rent a condo in Silom please",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "SYN-501",
+              "14,000",
+              "budget",
+              "https://example.com/synthetic-room.jpg"
+            ],
+            "language": "en"
+          }
+        }
+      ]
+    },
+    {
+      "id": "en-qualify-and-callback",
+      "inventory": "default",
+      "turns": [
+        {
+          "customer": "I want to rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "budget"
+            ],
+            "language": "en"
+          }
+        },
+        {
+          "customer": "15,000 baht",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "price": {
+                "max": 15000
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains_any": [
+              "move",
+              "month"
+            ],
+            "not_contains": [
+              "budget"
+            ],
+            "language": "en"
+          }
+        },
+        {
+          "customer": "next month",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": "next month",
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "contact"
+            ],
+            "language": "en",
+            "requirements": {
+              "desired_start": "next month",
+              "callback_offer_pending": true
+            }
+          }
+        },
+        {
+          "customer": "Yes, contact me here please",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "team"
+            ],
+            "language": "en",
+            "team_id": 2,
+            "mode": "human",
+            "private_contains": [
+              "15000",
+              "next month",
+              "501"
+            ],
+            "private_contains_any": [
+              [
+                "Silom",
+                "สีลม"
+              ]
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "new-airport-request-replaces-location",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "เช่าคอนโดแถวสีลม",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "สีลม"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "language": "th"
+          }
+        },
+        {
+          "customer": "I'm looking to rent a condo with convenient access to Suvarnabhumi Airport. Any areas you'd recommend?",
+          "plan": {
+            "intent": "area_advice",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Suvarnabhumi"
+              }
+            },
+            "new_search": true,
+            "desired_start": null,
+            "knowledge_query": "สุวรรณภูมิ"
+          },
+          "checks": {
+            "contains": [
+              "budget"
+            ],
+            "not_contains": [
+              "สีลม"
+            ],
+            "language": "en",
+            "search": {
+              "transaction_type": "rent"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "th-qualify-and-callback",
+      "inventory": "default",
+      "turns": [
+        {
+          "customer": "อยากเช่าคอนโดสีลม",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "สีลม"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "งบ"
+            ],
+            "language": "th"
+          }
+        },
+        {
+          "customer": "งบ 15000 บาทต่อเดือน",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "price": {
+                "max": 15000
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "เดือนไหน"
+            ],
+            "language": "th"
+          }
+        },
+        {
+          "customer": "เดือนหน้า",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": "เดือนหน้า",
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "ติดต่อกลับ"
+            ],
+            "language": "th"
+          }
+        },
+        {
+          "customer": "ได้ครับ",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "ทีมเจ้าหน้าที่"
+            ],
+            "language": "th",
+            "team_id": 2,
+            "private_contains": [
+              "15000",
+              "เดือนหน้า"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "english-after-thai",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "เช่าคอนโดสีลม",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "สีลม"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "language": "th"
+          }
+        },
+        {
+          "customer": "Please reply in English. My budget is 15000 baht",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "price": {
+                "max": 15000
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains_any": [
+              "move",
+              "month"
+            ],
+            "language": "en"
+          }
+        }
+      ]
+    },
+    {
+      "id": "thai-after-english",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "I want a condo for rent in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "language": "en"
+          }
+        },
+        {
+          "customer": "ตอบไทยครับ งบไม่เกิน 15000",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "price": {
+                "max": 15000
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "เดือนไหน"
+            ],
+            "language": "th"
+          }
+        }
+      ]
+    },
+    {
+      "id": "budget-unknown-does-not-loop",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "I want to rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "budget"
+            ]
+          }
+        },
+        {
+          "customer": "I'm not sure about my budget yet",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "not_contains": [
+              "budget"
+            ],
+            "contains_any": [
+              "move",
+              "month"
+            ],
+            "language": "en"
+          }
+        }
+      ]
+    },
+    {
+      "id": "callback-declined-stays-with-ai",
+      "inventory": "default",
+      "turns": [
+        {
+          "customer": "Rent a condo in Silom, budget 15000, next month",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              },
+              "price": {
+                "max": 15000
+              }
+            },
+            "new_search": false,
+            "desired_start": "next month",
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "contact"
+            ]
+          }
+        },
+        {
+          "customer": "No thanks, just show me the listings",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "not_contains": [
+              "contact"
+            ],
+            "contains": [
+              "SYN-501"
+            ],
+            "mode": "ai",
+            "team_id": null,
+            "requirements": {
+              "callback_declined": true
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "alternatives-require-explicit-consent",
+      "inventory": "default",
+      "turns": [
+        {
+          "customer": "Rent a condo in Silom, budget 10000, next month",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              },
+              "price": {
+                "max": 10000
+              }
+            },
+            "new_search": false,
+            "desired_start": "next month",
+            "knowledge_query": ""
+          },
+          "checks": {
+            "not_contains": [
+              "SYN-501"
+            ],
+            "search": {
+              "price": {
+                "max": 10000
+              }
+            }
+          }
+        },
+        {
+          "customer": "No callback, show alternatives please",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "alternatives",
+              "SYN-501"
+            ],
+            "search": {
+              "category_slug": "condo",
+              "transaction_type": "rent"
+            },
+            "absent_search_fields": [
+              "location",
+              "price"
+            ],
+            "team_id": null
+          }
+        }
+      ]
+    },
+    {
+      "id": "explicit-human-request-has-priority",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "Please let me speak to an agent",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "team"
+            ],
+            "language": "en",
+            "team_id": 2,
+            "search_delta": 0
+          }
+        }
+      ],
+      "require_planner": false
+    },
+    {
+      "id": "complaint-has-priority",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "ขอร้องเรียน ไม่พอใจมาก",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "ทีมเจ้าหน้าที่"
+            ],
+            "language": "th",
+            "team_id": 2
+          }
+        }
+      ],
+      "require_planner": false
+    },
+    {
+      "id": "refund-has-priority",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "I need a refund for a double charge",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "team"
+            ],
+            "language": "en",
+            "team_id": 2
+          }
+        }
+      ],
+      "require_planner": false
+    },
+    {
+      "id": "human-takeover-during-plan",
+      "inventory": "default",
+      "turns": [
+        {
+          "customer": "I want to rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "public_delta": 0
+          }
+        }
+      ],
+      "human_takeover": true
+    },
+    {
+      "id": "planner-outage-safe-fallback",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "I want to rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "budget"
+            ],
+            "language": "en"
+          }
+        },
+        {
+          "customer": "15000",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "price": {
+                "max": 15000
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains_any": [
+              "move",
+              "month"
+            ],
+            "language": "en",
+            "search": {
+              "price": {
+                "max": 15000
+              }
+            }
+          }
+        }
+      ],
+      "planner_outage": true,
+      "require_planner": false
+    },
+    {
+      "id": "malformed-plan-safe-fallback",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "I want to rent a condo in Silom",
+          "plan": "not json",
+          "checks": {
+            "contains": [
+              "budget"
+            ],
+            "language": "en"
+          }
+        }
+      ],
+      "require_planner": false
+    },
+    {
+      "id": "invalid-filter-is-not-executed",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "I want to rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "sql": "DROP TABLE items",
+              "price": {
+                "max": -1
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "budget"
+            ],
+            "not_contains": [
+              "DROP TABLE"
+            ],
+            "language": "en",
+            "absent_search_fields": [
+              "sql"
+            ]
+          }
+        }
+      ],
+      "require_planner": false
+    },
+    {
+      "id": "model-cannot-invent-an-offer",
+      "inventory": "default",
+      "turns": [
+        {
+          "customer": "Rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "SYN-501",
+              "14,000"
+            ],
+            "not_contains": [
+              "Ghost Tower",
+              "9,999",
+              "booked"
+            ],
+            "language": "en"
+          },
+          "answer": "Ghost Tower is available for 9,999 THB. I have booked it for you."
+        }
+      ]
+    },
+    {
+      "id": "missing-knowledge-clarify-then-handoff",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "Do you support exchanging assets with foreign trusts?",
+          "plan": {
+            "intent": "knowledge",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "more"
+            ],
+            "language": "en",
+            "team_id": null
+          }
+        },
+        {
+          "customer": "Please confirm that particular policy",
+          "plan": {
+            "intent": "knowledge",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "team"
+            ],
+            "language": "en",
+            "team_id": 2
+          }
+        }
+      ]
+    },
+    {
+      "id": "private-summary-retains-needs-after-relaxation",
+      "inventory": "default",
+      "turns": [
+        {
+          "customer": "Rent in Silom, budget 10000, next month",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              },
+              "price": {
+                "max": 10000
+              }
+            },
+            "new_search": false,
+            "desired_start": "next month",
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "contact"
+            ]
+          }
+        },
+        {
+          "customer": "No callback, show alternatives please",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "SYN-501"
+            ]
+          }
+        },
+        {
+          "customer": "Actually please contact me here",
+          "plan": {
+            "intent": "catalog",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "team_id": 2,
+            "private_contains": [
+              "10000",
+              "Silom",
+              "next month",
+              "501"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "greeting-preserves-qualification",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "I want to rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "budget"
+            ]
+          }
+        },
+        {
+          "customer": "Thanks",
+          "plan": {
+            "intent": "smalltalk",
+            "filters": {},
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "language": "en"
+          }
+        },
+        {
+          "customer": "15000",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "price": {
+                "max": 15000
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains_any": [
+              "move",
+              "month"
+            ],
+            "not_contains": [
+              "budget"
+            ],
+            "language": "en"
+          }
+        }
+      ]
+    },
+    {
+      "id": "area-advice-uses-supplied-knowledge",
+      "inventory": [],
+      "turns": [
+        {
+          "customer": "Which areas would you recommend to rent a condo with access to Suvarnabhumi Airport?",
+          "plan": {
+            "intent": "area_advice",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Suvarnabhumi"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": "สุวรรณภูมิ"
+          },
+          "checks": {
+            "contains": [
+              "Lad Krabang",
+              "budget"
+            ],
+            "language": "en"
+          },
+          "answer": "The supplied area guide identifies Lad Krabang and an Airport Rail Link connection."
+        }
+      ],
+      "knowledge": [
+        {
+          "id": 901,
+          "title": "Synthetic airport area guide",
+          "body_en": "Synthetic test guide: Lad Krabang is an area served by an Airport Rail Link connection. No available units or journey times are asserted."
+        }
+      ]
+    },
+    {
+      "id": "unsafe-links-are-omitted",
+      "inventory": [
+        {
+          "id": 501,
+          "code": "SYN-501",
+          "name_th": "ห้องตัวอย่างริมสวน",
+          "name_en": "Synthetic Garden Residence",
+          "category_slug": "condo",
+          "transaction_type": "rent",
+          "availability": "available",
+          "price": 14000,
+          "currency": "THB",
+          "location_text": "Silom / สีลม",
+          "bedrooms": 1,
+          "usable_area_sqm": 35,
+          "primary_image_url": "javascript:alert(1)",
+          "map_url": "http://example.com/map"
+        }
+      ],
+      "turns": [
+        {
+          "customer": "Rent a condo in Silom",
+          "plan": {
+            "intent": "catalog",
+            "filters": {
+              "category_slug": "condo",
+              "transaction_type": "rent",
+              "location": {
+                "text": "Silom"
+              }
+            },
+            "new_search": false,
+            "desired_start": null,
+            "knowledge_query": ""
+          },
+          "checks": {
+            "contains": [
+              "SYN-501"
+            ],
+            "not_contains": [
+              "javascript:",
+              "http://example.com/map"
+            ],
+            "language": "en"
+          }
+        }
+      ]
+    }
+  ]
+}

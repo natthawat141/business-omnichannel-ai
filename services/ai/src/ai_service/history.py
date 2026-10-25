@@ -51,6 +51,8 @@ def build_history(
     for item in sorted(messages, key=_created_sort_key):
         if item.get("private") is True:
             continue
+        if item.get("status") == "failed":
+            continue
 
         message_type = _message_type(item.get("message_type"))
         if message_type not in (MESSAGE_TYPE_INCOMING, MESSAGE_TYPE_OUTGOING):
