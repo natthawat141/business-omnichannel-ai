@@ -1,5 +1,19 @@
 # AI connection setup
 
+## Reading-first setup (2026-11-01)
+
+The default selected task is catalog proposals for administrator review. The prominent Copy page
+action exports client-neutral instructions to inspect capabilities, initiate OAuth if available,
+and verify actual tool responses. It tells clients to report a disabled remote transport and to use
+the supported local route where appropriate. Manual command blocks are expandable and credentials
+are excluded from the page export. Scope selection does not grant permissions: the operator must
+still consent or explicitly issue a scoped key. Applying or publishing remains human-only.
+
+Local validation: 49 focused PHP tests / 537 assertions passed, including an update proposal that
+changes a synthetic catalog item only after administrator approval and apply. Frontend typecheck,
+lint, build, and ten synthetic browser checks passed. A real OAuth connection from Codex or Antigravity was not exercised; the last observed production
+Remote MCP configuration was disabled. This slice does not enable Remote MCP or change OAuth credentials.
+
 ## Unified setup and MCP experience (2026-10-25)
 
 The current `/admin/ai-setup` displays browser connection and Local CLI/MCP instructions together.
@@ -7,11 +21,14 @@ The old `?advanced=1` URL renders the same page. No separate Advanced navigation
 Select the intended metadata/proposal task once, select a local client when needed, and use the
 in-page section links for browser setup, local setup, connections, keys and troubleshooting.
 
-**คัดลอกคู่มือทั้งหน้า** exports the remote steps/prompt, selected local client's agent and manual
+**Copy page** exports the remote steps/prompt, selected local client's agent and manual
 instructions, expiry choice, verification, troubleshooting, documentation and safe connection/key
 metadata. It never reads DOM text or password inputs and never receives the one-time issued key.
 The individual key-copy action remains explicit. Clipboard denial exposes a selectable safe guide.
-Local commands are shown directly in order; the agent prompt retains Preview/Markdown tabs.
+The default task allows proposals for administrator review. AI client compatibility is checked by
+the client, which should open OAuth when Remote MCP is enabled and supported. Commands for manual
+local installation are collapsed under expandable instructions. Copied guidance never claims that
+OAuth or a real client connection succeeded.
 Keys are masked initially with a show/hide control; changing client/scope never issues credentials.
 Connection/key revocation asks for confirmation and preserves recovery after a failed request.
 

@@ -120,6 +120,24 @@ class AgentChangesetTest extends TestCase
             ->assertJsonPath('data.operations.0.action', 'create');
     }
 
+    public function test_agent_proposes_update_and_admin_applies_it(): void
+    {
+        $item = ServicePackage::factory()->create(['name_th' => 'Original', 'lock_version' => 1]);
+        ['plainText' => $plain] = $this->token();
+        $proposal = ['operations' => [[
+            'entity' => 'catalog', 'action' => 'update', 'target_id' => $item->id,
+            'expected_version' => 1, 'payload' => ['name_th' => 'Updated by proposal'],
+        ]]];
+        $this->postJson('/api/v1/agent/changes/preview', $proposal, $this->headers($plain))->assertOk();
+        $id = $this->postJson('/api/v1/agent/changes', $proposal, $this->headers($plain))->assertCreated()->json('data.id');
+        $this->assertSame('Original', $item->fresh()->name_th);
+        $admin = $this->admin();
+        $this->actingAs($admin)->post('/admin/agent-changes/'.$id.'/approve')->assertRedirect();
+        $this->actingAs($admin)->post('/admin/agent-changes/'.$id.'/apply')->assertRedirect();
+        $this->assertSame('Updated by proposal', $item->fresh()->name_th);
+        $this->assertDatabaseHas('agent_change_sets', ['id' => $id, 'status' => 'applied']);
+    }
+
     public function test_admin_approval_then_apply_creates_drafts_with_parent_refs_and_sources(): void
     {
         ['plainText' => $plain] = $this->token();

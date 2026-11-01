@@ -1472,3 +1472,9 @@
     .ai-unified .prompt-prose { padding: 16px; }
     .setup-header > button { width: 100%; }
 }
+
+/* Reading-first setup guide */
+.ai-unified .setup-copy-page { min-height: 44px; padding-inline: 18px; border-radius: 8px; }
+.ai-unified .setup-manual { border: 1px solid var(--ai-line); border-radius: 8px; padding: 14px 18px; margin: 20px 0; }
+.ai-unified .setup-manual summary { cursor: pointer; font-weight: 600; }
+.ai-unified .setup-endpoint input { width: 100%; }
