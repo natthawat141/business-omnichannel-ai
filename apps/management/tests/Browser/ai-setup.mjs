@@ -75,7 +75,9 @@ try {
   });
   await page.screenshot({path: path.join(outputDir, 'desktop.png')});
   await check('copy_complete_guide', async () => {
-    await page.getByRole('button', {name: 'คัดลอกคู่มือทั้งหน้า', exact: true}).click();
+    assert.equal(await page.locator('#setup-scope').inputValue(), 'catalog_proposals');
+    assert.equal(await page.getByText('Prompt ให้ AI ช่วยเชื่อมผ่านเว็บ').count(), 0);
+    await page.getByRole('button', {name: 'Copy page', exact: true}).click();
     const value = await page.evaluate(() => navigator.clipboard.readText());
     for (const part of ['Remote MCP', 'Manual setup', 'Local keys', 'แก้ปัญหา', 'codex mcp add', '/docs/remote-mcp']) assert.ok(value.includes(part), part);
   });
@@ -83,7 +85,7 @@ try {
     await page.getByRole('button', {name: 'Antigravity', exact: true}).click();
     await page.locator('#setup-scope').selectOption('catalog_proposals');
     await page.getByLabel('คำถามพบบ่อย', {exact: true}).check();
-    await page.getByRole('button', {name: 'คัดลอกคู่มือทั้งหน้า', exact: true}).click();
+    await page.getByRole('button', {name: 'Copy page', exact: true}).click();
     const value = await page.evaluate(() => navigator.clipboard.readText());
     assert.ok(value.includes('agent:faq')); assert.ok(value.includes('Antigravity')); assert.ok(value.includes('PASTE_KEY_LOCALLY'));
   });
@@ -95,7 +97,7 @@ try {
     await page.locator('#issued-local-key').waitFor();
     assert.equal(await page.locator('#issued-local-key').getAttribute('type'), 'password');
     assert.equal(createCalls, 1);
-    await page.getByRole('button', {name: 'คัดลอกคู่มือทั้งหน้า', exact: true}).click();
+    await page.getByRole('button', {name: 'Copy page', exact: true}).click();
     const value = await page.evaluate(() => navigator.clipboard.readText());
     assert.ok(!value.includes(secret)); assert.ok(value.includes('AI Setup: codex'));
     await page.getByRole('button', {name: 'แสดง local key', exact: true}).click();
@@ -105,14 +107,14 @@ try {
   await check('all_local_clients_export_their_registration', async () => {
     for (const [name, expected] of [['Terminal / CLI', 'node ./bin/document-intake.js list'], ['Claude Code', 'claude mcp add'], ['Antigravity', 'mcpServers'], ['Codex', 'codex mcp add']]) {
       await page.getByRole('button', {name, exact: true}).click();
-      await page.getByRole('button', {name: 'คัดลอกคู่มือทั้งหน้า', exact: true}).click();
+      await page.getByRole('button', {name: 'Copy page', exact: true}).click();
       assert.ok((await page.evaluate(() => navigator.clipboard.readText())).includes(expected));
       assert.equal(createCalls, 1);
     }
   });
   await check('clipboard_denial_has_safe_manual_fallback', async () => {
     await page.evaluate(() => { window.__originalCopy = navigator.clipboard.writeText.bind(navigator.clipboard); navigator.clipboard.writeText = async () => { throw new DOMException('denied', 'NotAllowedError'); }; });
-    await page.getByRole('button', {name: 'คัดลอกคู่มือทั้งหน้า', exact: true}).click();
+    await page.getByRole('button', {name: 'Copy page', exact: true}).click();
     const field = page.getByRole('textbox', {name: 'คู่มือทั้งหน้าสำหรับคัดลอก'});
     await field.waitFor(); assert.ok(!(await field.inputValue()).includes(secret));
     assert.equal(await field.evaluate(element => element === document.activeElement), true);
@@ -145,7 +147,7 @@ try {
     remoteEnabled = false;
     await page.goto(origin + '/admin/ai-setup?advanced=1');
     await page.getByRole('heading', {name: 'เชื่อมต่อ AI กับข้อมูลธุรกิจ'}).waitFor();
-    assert.equal(await page.getByRole('button', {name: 'Copy URL', exact: true}).isDisabled(), true);
+    assert.ok(await page.getByText('ยังไม่เปิด Remote MCP ในสภาพแวดล้อมนี้ ใช้การตั้งค่าบนเครื่องด้านล่างได้').isVisible());
     assert.equal(await page.getByRole('button', {name: 'สร้าง key สำหรับ Codex', exact: true}).isEnabled(), true);
   });
   await check('dark_theme_and_keyboard_focus', async () => {
@@ -153,8 +155,8 @@ try {
     await page.getByRole('button', {name: 'โหมดมืด', exact: true}).click();
     assert.equal(await page.locator('html').getAttribute('data-theme'), 'dark');
     await page.evaluate(() => window.scrollTo(0, 0));
-    await page.getByRole('button', {name: 'คัดลอกคู่มือทั้งหน้า', exact: true}).focus();
-    assert.equal(await page.evaluate(() => document.activeElement.textContent.includes('คัดลอกคู่มือทั้งหน้า')), true);
+    await page.getByRole('button', {name: 'Copy page', exact: true}).focus();
+    assert.equal(await page.evaluate(() => document.activeElement.textContent.includes('Copy page')), true);
     await page.screenshot({path: path.join(outputDir, 'dark.png')});
   });
   assert.deepEqual(errors, []);

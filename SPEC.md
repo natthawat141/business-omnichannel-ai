@@ -393,6 +393,10 @@ document-upload UI instructions, not the catalog proposal or AI connection capab
   remote connection steps, the selected local client's agent/manual instructions, verification,
   troubleshooting and safe connection/key metadata. Never include an issued key, OAuth token,
   password or cookie. Preserve local client/scope choices and explicit operator-only key issuance.
+- **FR-SETUP-013 (product owner request 2026-11-01):** Present setup as readable documentation
+  with a prominent Copy page action. Default the selected task to catalog-change proposals; the
+  copied guide directs a compatible client to initiate OAuth and reports actual connection results.
+  Keep manual setup available and keep administrator approval and application mandatory.
 - **FR-SETUP-012 (approved 2026-10-25):** Improve MCP discoverability with clear titles,
   scoped workflow guidance, structured results plus compatible text, bounded record pagination,
   and actionable errors. Preserve existing tool names, scopes, proposal ownership and human-only
