@@ -84,7 +84,7 @@ export default function AiSetup({
     antigravityConfig,
 }: Props) {
     const [client, setClient] = useState<LocalClient>("codex");
-    const [scope, setScope] = useState<SetupScope>("document_metadata");
+    const [scope, setScope] = useState<SetupScope>("catalog_proposals");
     const [proposalEntities, setProposalEntities] = useState<ProposalEntity[]>([
         "catalog",
     ]);
@@ -292,7 +292,7 @@ export default function AiSetup({
                         </p>
                     </div>
                     <Button
-                        variant="secondary"
+                        className="setup-copy-page"
                         onClick={async () => {
                             setManualCopy(
                                 !(await copy(pageMarkdown, "คู่มือทั้งหน้า")),
@@ -304,7 +304,7 @@ export default function AiSetup({
                         ) : (
                             <Copy size={16} aria-hidden="true" />
                         )}
-                        คัดลอกคู่มือทั้งหน้า
+                        Copy page
                     </Button>
                 </header>
                 <nav
@@ -464,16 +464,7 @@ export default function AiSetup({
                                     value={remote.endpoint}
                                     spellCheck={false}
                                 />
-                                <Button
-                                    variant="secondary"
-                                    disabled={!remoteEnabled}
-                                    onClick={() =>
-                                        copy(remote.endpoint, "Server URL")
-                                    }
-                                >
-                                    <Copy size={15} aria-hidden="true" /> Copy
-                                    URL
-                                </Button>
+
                             </div>
                         </li>
                         <li>
@@ -487,13 +478,14 @@ export default function AiSetup({
                         <li>
                             <h3>3. เรียกเครื่องมือจริงจากแอป</h3>
                             <p>
-                                ลองขอให้ AI ดูเอกสาร หากผลลัพธ์ว่างแต่คำขอสำเร็จ
-                                แปลว่าเชื่อมได้และยังไม่มีรายการ การเพิ่ม URL
-                                อย่างเดียวยังไม่ยืนยันว่าใช้ได้
+                                {scope === "catalog_proposals"
+                                    ? "ขอให้ AI อ่านโครงสร้างและค้นข้อมูลจริง จากนั้นทดลองเสนอแก้ไข ผู้ดูแลตรวจและกดใช้ในระบบ"
+                                    : "ขอให้ AI อ่านรายชื่อเอกสาร หากผลลัพธ์ว่างแต่คำขอสำเร็จ แปลว่าเชื่อมได้แต่ยังไม่มีรายการ"}
+                                การเพิ่ม URL อย่างเดียวยังไม่ยืนยันว่าใช้ได้
                             </p>
                         </li>
                     </ol>
-                    {code("Prompt ให้ AI ช่วยเชื่อมผ่านเว็บ", remote.prompt)}
+                    <p className="setup-hint">กด Copy page ด้านบน แล้ววางใน Codex, Antigravity หรือแอป AI ที่ใช้ AI จะตรวจวิธีเชื่อมต่อและพาคุณไปอนุญาตผ่าน OAuth เมื่อรองรับ</p>
                     <p className="setup-hint">
                         สิทธิ์ที่คำแนะนำขอ: <code>{remote.scopes}</code>
                     </p>
@@ -544,13 +536,10 @@ export default function AiSetup({
                             คัดลอก prompt ให้ agent
                             ตรวจเครื่องและเตรียมการติดตั้งก่อนสร้าง key
                         </p>
-                        <TerminalBlock
-                            label={`Prompt ตั้งค่า ${local.selected.label}`}
-                            value={local.skillPrompt}
-                            onCopy={copy}
-                            className="docs-terminal--prompt"
-                        />
+                        <p>กด Copy page ด้านบน แล้วส่งคู่มือให้ AI เพื่อช่วยตั้งค่าและตรวจผล</p>
                     </div>
+                    <details className="setup-manual">
+                        <summary>ขั้นตอนติดตั้งและตั้งค่าด้วยตัวเอง</summary>
                     <div className="setup-local-step">
                         <h3>2. ติดตั้งและลงทะเบียนด้วยตัวเอง</h3>
                         <p>
@@ -560,6 +549,7 @@ export default function AiSetup({
                         </p>
                         {code("ติดตั้ง package · Bash", local.installCommand)}
                     </div>
+                    </details>
                     <div id="create-local-key" className="setup-local-step">
                         <h3>3. สร้าง key แล้วลงทะเบียนแอป</h3>
                         <p>
@@ -667,6 +657,7 @@ export default function AiSetup({
                                 ? "เตรียม global config นอก repository แล้วใส่ key แทน PASTE_KEY_LOCALLY ด้วยตัวเอง รักษา server อื่นที่มีอยู่"
                                 : "ใช้ Bash เดิม รันคำสั่งนี้แล้วกรอก key ตอนขึ้น Key: ตัวอักษรจะไม่แสดงระหว่างกรอก"}
                         </p>
+                        <details className="setup-manual"><summary>คำสั่งตั้งค่าด้วยตัวเอง</summary>
                         {code(
                             client === "antigravity"
                                 ? "เตรียม Antigravity"
@@ -679,6 +670,7 @@ export default function AiSetup({
                                 : "ลงทะเบียน client · Bash",
                             local.command,
                         )}
+                        </details>
                         <a href={local.skillPath}>
                             อ่านข้อจำกัดและเครื่องมือที่ใช้ได้{" "}
                             <ArrowUpRight size={15} aria-hidden="true" />
@@ -691,7 +683,7 @@ export default function AiSetup({
                             แล้วตรวจจากผลเรียกใช้เครื่องมือจริง
                             หน้านี้ไม่ได้ตรวจเครื่องของคุณแทน
                         </p>
-                        {code("คำสั่งตรวจการเชื่อมต่อ", local.verification)}
+                        <p>{local.verification}</p>
                     </div>
                 </section>
                 <section

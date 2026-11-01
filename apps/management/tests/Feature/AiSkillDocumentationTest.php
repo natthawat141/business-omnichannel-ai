@@ -27,18 +27,17 @@ class AiSkillDocumentationTest extends TestCase
         $this->assertStringContainsString('/skills/management-proposals/SKILL.md', file_get_contents(public_path('llms.txt')));
     }
 
-    public function test_local_agent_prompt_contains_public_url_not_issued_key(): void
+    public function test_share_prompt_contains_public_url_not_issued_key(): void
     {
         $page = file_get_contents(resource_path('js/pages/AiSetup.tsx'));
-        $guide = file_get_contents(resource_path('js/lib/aiSetupGuide.ts'));
-        $this->assertSame(1, preg_match('/const skillPrompt = `([^`]+)`;/u', $guide, $matches));
+        $guideSource = file_get_contents(resource_path('js/lib/aiSetupGuide.ts'));
+        $this->assertSame(1, preg_match('/const skillPrompt = `([^`]+)`;/u', $guideSource, $matches));
         $this->assertStringContainsString('${baseUrl}${skillPath}', $matches[1]);
         $this->assertStringNotContainsString('issued', $matches[1]);
         $this->assertStringNotContainsString('.key', $matches[1]);
         foreach (['${installCommand}', 'environment}', '${command}', '/docs/agent-setup.md'] as $step) {
             $this->assertStringContainsString($step, $matches[1]);
         }
-        $this->assertStringContainsString('value={local.skillPrompt}', $page);
         $this->assertStringContainsString('setupPageMarkdown', $page);
         $guide = file_get_contents(public_path('docs/agent-setup.md'));
         $this->assertStringContainsString('/downloads/document-intake-agent-0.2.0.tgz', $guide);
@@ -50,7 +49,7 @@ class AiSkillDocumentationTest extends TestCase
         $page = file_get_contents(resource_path('js/pages/AiSetup.tsx'));
         $terminal = file_get_contents(resource_path('js/components/TerminalBlock.tsx'));
 
-        foreach (['TerminalBlock', 'คัดลอกคู่มือทั้งหน้า', 'setupPageMarkdown', 'aria-label="ส่วนในหน้าเชื่อมต่อ AI"'] as $contract) {
+        foreach (['TerminalBlock', 'Copy page', 'setupPageMarkdown', 'aria-label="ส่วนในหน้าเชื่อมต่อ AI"'] as $contract) {
             $this->assertStringContainsString($contract, $page);
         }
 
@@ -58,7 +57,8 @@ class AiSkillDocumentationTest extends TestCase
             $this->assertStringContainsString($contract, $terminal);
         }
 
-        $this->assertStringContainsString('Explicit safe export. The issued credential state is never supplied to the generator.', $page);
+        $this->assertSame(1, preg_match('/const pageMarkdown = setupPageMarkdown\(\{(.*?)\}\);/s', $page, $export));
+        $this->assertStringNotContainsString('issued', $export[1]);
         $this->assertStringNotContainsString('visibleKey', $terminal);
     }
 }
